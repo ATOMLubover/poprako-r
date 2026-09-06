@@ -48,7 +48,7 @@ jobs:
           "OpenAPI specification" "sh scripts/ci-openapi-check.sh"
 
   typescript:
-    name: Deno / TypeScript
+    name: TypeScript
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
