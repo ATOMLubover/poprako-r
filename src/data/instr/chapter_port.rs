@@ -11,6 +11,7 @@ use serde::{Deserialize, Deserializer};
 #[cfg(feature = "swagger")]
 use utoipa::ToSchema;
 
+use crate::value::artwork::ArtworkHash;
 use crate::value::chapter_port::{
     ChapterTranslationImportMode, ExportFormatSpec, TranslationFormat,
 };
@@ -159,4 +160,26 @@ pub struct ImportChapterTranslationInstr {
 
     /// Raw translation content string.
     pub content: String,
+}
+
+/// Request to allocate the chapter's single artwork file.
+#[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "swagger", derive(ToSchema))]
+pub struct AllocChapterArtworkInstr {
+    //
+    /// Canonical Base64 SHA-256 identity of the exact uploaded bytes.
+    pub artwork_hash: ArtworkHash,
+    /// Exact upload length, also bound into the PUT signature.
+    pub new_byte_len: u64,
+    /// File extension without a leading dot.
+    pub ext: String,
+}
+
+/// Confirmation of one exact current artwork generation.
+#[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "swagger", derive(ToSchema))]
+pub struct MarkChapterArtworkUploadedInstr {
+    /// Version returned by allocation, including deduplicated allocation.
+    #[serde(rename = "artwork_version")]
+    pub artwork_ver: u32,
 }

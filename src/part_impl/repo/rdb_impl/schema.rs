@@ -64,9 +64,22 @@ diesel::table! {
         f_reviewed_at -> Nullable<Timestamptz>,
         f_published_at -> Nullable<Timestamptz>,
         f_creator_id -> Text,
+        f_deleted_at -> Nullable<Timestamptz>,
         f_created_at -> Timestamptz,
         f_updated_at -> Timestamptz,
-        f_deleted_at -> Nullable<Timestamptz>,
+    }
+}
+
+diesel::table! {
+    t_chapter_artwork (f_id) {
+        f_id -> Text,
+        f_version -> Int8,
+        f_key -> Nullable<Text>,
+        f_is_uploaded -> Nullable<Bool>,
+        f_hash -> Nullable<Bytea>,
+        f_ext -> Nullable<Text>,
+        f_created_at -> Timestamptz,
+        f_updated_at -> Timestamptz,
     }
 }
 
@@ -95,9 +108,9 @@ diesel::table! {
         f_creator_id -> Text,
         f_last_active_at -> Timestamptz,
         f_archived_at -> Nullable<Timestamptz>,
+        f_deleted_at -> Nullable<Timestamptz>,
         f_created_at -> Timestamptz,
         f_updated_at -> Timestamptz,
-        f_deleted_at -> Nullable<Timestamptz>,
     }
 }
 
@@ -247,9 +260,9 @@ diesel::table! {
         f_name -> Text,
         f_description -> Nullable<Text>,
         f_workset_next_index -> Int4,
+        f_deleted_at -> Nullable<Timestamptz>,
         f_created_at -> Timestamptz,
         f_updated_at -> Timestamptz,
-        f_deleted_at -> Nullable<Timestamptz>,
     }
 }
 
@@ -347,9 +360,9 @@ diesel::table! {
         f_description -> Nullable<Text>,
         f_comic_count -> Int4,
         f_comic_next_index -> Int4,
+        f_deleted_at -> Nullable<Timestamptz>,
         f_created_at -> Timestamptz,
         f_updated_at -> Timestamptz,
-        f_deleted_at -> Nullable<Timestamptz>,
     }
 }
 
@@ -386,6 +399,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     t_assignment,
     t_assignment_invitation,
     t_chapter,
+    t_chapter_artwork,
     t_chapter_workflow_record,
     t_comic,
     t_comic_archive,

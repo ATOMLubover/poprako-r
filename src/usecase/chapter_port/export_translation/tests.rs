@@ -1,4 +1,4 @@
-// export(export)(positive): assignee atomically exports both formats from one loaded chapter snapshot, records one export, and triggers typeset/redraw once.
+// export_translation(export)(positive): assignee atomically exports both formats from one loaded chapter snapshot, records one export, and triggers typeset/redraw once.
 
 use super::*;
 
@@ -212,7 +212,7 @@ async fn export_returns_both_formats_and_records_one_export() {
         Some("alpha proof"),
     ));
 
-    let exported = export(
+    let exported = export_translation(
         (&mock, &mock, &mock),
         token("user-1"),
         "chapter-1".into(),
@@ -297,7 +297,7 @@ async fn export_by_unassigned_team_member_does_not_start_typeset_redraw() {
 
     mock.seed_member(member("team-member"));
 
-    let exported = export(
+    let exported = export_translation(
         (&mock, &mock, &mock),
         token("team-member"),
         "chapter-1".into(),

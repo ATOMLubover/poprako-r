@@ -12,6 +12,11 @@ async fn repo_rdb_impls_use_testcontainer() {
 
     let shared = test_rdb.core();
 
+    crate::part_impl::obj_dept::tests::artwork_transactional_mark(
+        shared.clone(),
+    )
+    .await;
+
     schema::all_application_table_columns_match_generated_schema(
         shared.clone(),
     )

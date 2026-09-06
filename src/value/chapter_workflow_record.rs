@@ -95,6 +95,9 @@ pub enum ChapterWorkflowRecordOrigin {
 
     /// A delayed raw-provision upload-completeness check completed the stage.
     RawProvideCheck,
+
+    /// Client confirmation of the current artwork upload.
+    ArtworkUpload,
 }
 
 /// Typed, immutable details attached to a workflow record.

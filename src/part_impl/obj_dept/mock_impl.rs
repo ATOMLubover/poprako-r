@@ -255,6 +255,43 @@ macro_rules! implement_mock_obj_dept {
         }
 
         impl<'a>
+            ::poprako_orchestra::Step<
+                ::poprako_obj_dept::oper::MarkObjUploaded<'a, $obj>,
+                $crate::part_impl::repo::mock_impl::MockContext,
+            > for $crate::part_impl::repo::mock_impl::Mock
+        {
+            type Level = $crate::part::nucl::ReptRead;
+            type Error = ::poprako_obj_dept::rest::ObjDeptError;
+
+            async fn step(
+                &self,
+                context: &mut $crate::part_impl::repo::mock_impl::MockContext,
+                oper: &::poprako_obj_dept::oper::MarkObjUploaded<'a, $obj>,
+            ) -> ::poprako_obj_dept::rest::ObjDeptRest<bool> {
+                let state = &mut context.state;
+                let Some(record) = state
+                    .objs
+                    .get_mut($topic)
+                    .and_then(|objs| objs.get_mut(&oper.key.id))
+                else {
+                    return Ok(false);
+                };
+
+                if record.version != oper.key.ver {
+                    return Ok(false);
+                }
+
+                let Some(meta) = record.meta.as_mut() else {
+                    return Ok(false);
+                };
+
+                meta.is_avail = true;
+
+                Ok(true)
+            }
+        }
+
+        impl<'a>
             ::poprako_orchestra::Run<
                 ::poprako_obj_dept::oper::ListObjMetas<'a, $obj>,
             > for $crate::part_impl::repo::mock_impl::Mock

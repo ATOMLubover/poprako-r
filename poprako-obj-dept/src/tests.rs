@@ -122,6 +122,19 @@ impl<'a> Run<MarkObjUploaded<'a, PageImage>> for TestDept {
     }
 }
 
+impl<'a> Step<MarkObjUploaded<'a, PageImage>, TestContext> for TestDept {
+    type Level = TestLevel;
+    type Error = ObjDeptError;
+
+    async fn step(
+        &self,
+        _context: &mut TestContext,
+        _oper: &MarkObjUploaded<'a, PageImage>,
+    ) -> Result<bool, Self::Error> {
+        Ok(true)
+    }
+}
+
 impl<'a> Step<ListObjMetas<'a, PageImage>, TestContext> for TestDept {
     type Level = TestLevel;
     type Error = ObjDeptError;

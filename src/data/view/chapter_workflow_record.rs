@@ -254,6 +254,9 @@ pub enum ChapterWorkflowRecordOriginView {
 
     /// Raw-provision completeness check.
     RawProvideCheck,
+
+    /// Client confirmation of the current artwork upload.
+    ArtworkUpload,
 }
 
 impl From<ChapterWorkflowRecordOrigin> for ChapterWorkflowRecordOriginView {
@@ -263,6 +266,8 @@ impl From<ChapterWorkflowRecordOrigin> for ChapterWorkflowRecordOriginView {
         match origin {
             //
             ChapterWorkflowRecordOrigin::Manual => Self::Manual,
+
+            ChapterWorkflowRecordOrigin::ArtworkUpload => Self::ArtworkUpload,
 
             ChapterWorkflowRecordOrigin::UnitEdit => Self::UnitEdit,
 

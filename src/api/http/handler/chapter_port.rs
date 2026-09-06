@@ -1,13 +1,14 @@
-//! Chapter translation port handlers: import, body export, and download export.
+//! Chapter translation and artwork port handlers.
+
+// Shared translation export response helpers.
+mod export;
 
 #[cfg(test)]
 mod tests;
 
 use axum::Json;
-use axum::body::{Body, Bytes};
 use axum::extract::{Extension, Path, Query, State};
 use axum::http::StatusCode;
-use axum::http::header::{CONTENT_DISPOSITION, CONTENT_TYPE};
 use axum::response::Response;
 use tracing::instrument;
 
@@ -16,18 +17,23 @@ use crate::api::http::result::HttpBody;
 #[cfg(feature = "swagger")]
 use crate::data::val::chapter_port::ExportChapterTranslationsVal;
 
-use crate::api::http::result::{Accept as _, HttpError, HttpResult};
+use crate::api::http::result::{
+    Accept as _, HttpError, HttpNoContent, HttpResult, no_content,
+};
 use crate::api::http::state::AppHarn;
 use crate::data::instr::chapter_port::{
-    ExportChapterTranslationInstr, ImportChapterTranslationInstr,
+    AllocChapterArtworkInstr, ExportChapterTranslationInstr,
+    ImportChapterTranslationInstr, MarkChapterArtworkUploadedInstr,
 };
-use crate::data::val::chapter_port::ImportChapterTranslationVal;
+use crate::data::val::chapter_port::{
+    AllocChapterArtworkVal, ExportChapterArtworkVal,
+    ImportChapterTranslationVal,
+};
 use crate::model::shared::user::UserToken;
 use crate::part::nucl::ReptRead;
 use crate::part_impl::repo::HybRepo;
 use crate::shared::RdbContext;
 use crate::usecase;
-use crate::value::chapter_port::ExportFormatSpec;
 
 /// `POST /api/v1/chapters/{chapter_id}/translations/import` — import translations.
 #[cfg_attr(feature = "swagger", utoipa::path(
@@ -43,14 +49,18 @@ use crate::value::chapter_port::ExportFormatSpec;
     ),
 ))]
 #[instrument(level = "info", skip_all)]
-pub async fn import(
+pub async fn import_translation(
     State(harn): State<AppHarn>,
     Path(chapter_id): Path<String>,
     Extension(user_token): Extension<UserToken>,
     Json(instr): Json<ImportChapterTranslationInstr>,
 ) -> HttpResult<ImportChapterTranslationVal> {
     //
-    usecase::chapter_port::import::import::<_, RdbContext<ReptRead>, HybRepo>(
+    usecase::chapter_port::import_translation::import_translation::<
+        _,
+        RdbContext<ReptRead>,
+        HybRepo,
+    >(
         (harn.nucl().rept_read(), harn.repo()),
         user_token,
         instr,
@@ -77,7 +87,7 @@ pub async fn import(
     ),
 ))]
 #[instrument(level = "info", skip_all)]
-pub async fn export(
+pub async fn export_translation(
     State(harn): State<AppHarn>,
     Path(chapter_id): Path<String>,
     Extension(user_token): Extension<UserToken>,
@@ -85,9 +95,10 @@ pub async fn export(
 ) -> Result<Response, HttpError> {
     //
     let payload =
-        export_payload(&harn, user_token, chapter_id, instr.format).await?;
+        export::export_payload(&harn, user_token, chapter_id, instr.format)
+            .await?;
 
-    body_response(payload)
+    export::body_response(payload)
 }
 
 /// `GET /api/v1/chapters/{chapter_id}/translations/export/download` — export as file download.
@@ -107,7 +118,7 @@ pub async fn export(
     ),
 ))]
 #[instrument(level = "info", skip_all)]
-pub async fn export_download(
+pub async fn export_translation_download(
     State(harn): State<AppHarn>,
     Path(chapter_id): Path<String>,
     Extension(user_token): Extension<UserToken>,
@@ -117,108 +128,114 @@ pub async fn export_download(
     let filename = format!("chapter_{}", chapter_id);
 
     let payload =
-        export_payload(&harn, user_token, chapter_id, instr.format).await?;
+        export::export_payload(&harn, user_token, chapter_id, instr.format)
+            .await?;
 
-    download_response(&filename, payload)
+    export::download_response(&filename, payload)
 }
 
-// Internal payload carrying the serialised export content and response metadata.
-struct TranslationExportPayload {
-    //
-    // MIME type of the HTTP response body.
-    content_type: &'static str,
-    // File extension for the downloaded filename suffix.
-    ext: &'static str,
-    // Raw bytes of the serialised export payload.
-    body: Bytes,
-}
-
-// Loads exported chapter data from the selected usecase path and builds the
-// response payload that is later written into the HTTP body.
+/// Allocates a direct chapter artwork upload; an available duplicate has no slot.
+#[cfg_attr(feature = "swagger", utoipa::path(
+    post, path = "/api/v1/chapters/{chapter_id}/artwork/alloc", tag = "chapter-port",
+    params(("chapter_id" = String, Path, description = "Chapter ID")),
+    request_body = AllocChapterArtworkInstr,
+    responses(
+        (status = 200, description = "Current artwork version and optional PUT capability", body = HttpBody<AllocChapterArtworkVal>),
+        (status = 403, description = "Chapter artwork role required"),
+        (status = 422, description = "Invalid allocation or frozen chapter"),
+    ),
+))]
 #[instrument(level = "info", skip_all)]
-async fn export_payload(
-    harn: &AppHarn,
-    user_token: UserToken,
-    chapter_id: String,
-    formats: ExportFormatSpec,
-) -> Result<TranslationExportPayload, HttpError> {
+pub async fn alloc_artwork(
+    State(harn): State<AppHarn>,
+    Path(chapter_id): Path<String>,
+    Extension(user_token): Extension<UserToken>,
+    Json(instr): Json<AllocChapterArtworkInstr>,
+) -> HttpResult<AllocChapterArtworkVal> {
     //
-    let val = usecase::chapter_port::export::export::<
+    usecase::chapter_port::artwork::alloc_artwork::<
         _,
         RdbContext<ReptRead>,
         HybRepo,
         _,
     >(
-        (harn.nucl().rept_read(), harn.repo(), harn.obj_dept()),
+        (
+            harn.nucl().rept_read(),
+            harn.repo(),
+            harn.obj_dept(),
+            &harn.config().artwork,
+        ),
         user_token,
         chapter_id,
-        formats,
+        instr,
+    )
+    .await?
+    .accept(StatusCode::OK)
+}
+
+/// Optimistically confirms artwork and atomically completes typesetting/redraw.
+#[cfg_attr(feature = "swagger", utoipa::path(
+    post, path = "/api/v1/chapters/{chapter_id}/artwork/mark-uploaded", tag = "chapter-port",
+    params(("chapter_id" = String, Path, description = "Chapter ID")),
+    request_body = MarkChapterArtworkUploadedInstr,
+    responses(
+        (status = 204, description = "Current artwork confirmed and typesetting completed"),
+        (status = 403, description = "Chapter artwork role required"),
+        (status = 422, description = "Missing or stale artwork version, or frozen chapter"),
+    ),
+))]
+#[instrument(level = "info", skip_all)]
+pub async fn mark_artwork_uploaded(
+    State(harn): State<AppHarn>,
+    Path(chapter_id): Path<String>,
+    Extension(user_token): Extension<UserToken>,
+    Json(instr): Json<MarkChapterArtworkUploadedInstr>,
+) -> HttpNoContent {
+    //
+    usecase::chapter_port::artwork::mark_artwork_uploaded::<
+        _,
+        RdbContext<ReptRead>,
+        HybRepo,
+        _,
+        _,
+    >(
+        (
+            harn.nucl().rept_read(),
+            harn.repo(),
+            harn.obj_dept(),
+            harn.develop(),
+        ),
+        user_token,
+        chapter_id,
+        instr,
     )
     .await?;
 
-    let body = serde_json::to_vec(&val).map_err(|err| {
-        //
-        tracing::error!(
-            operation = "serialize_chapter_export",
-            sdk_err = ?err,
-            "JSON SDK serialization error",
-        );
-
-        HttpError::internal()
-    })?;
-
-    Ok(TranslationExportPayload {
-        content_type: "application/json",
-        ext: "json",
-        body: Bytes::from(body),
-    })
+    no_content()
 }
 
-// Builds a `200 OK` inline export response with the payload's MIME type.
-fn body_response(
-    payload: TranslationExportPayload,
-) -> Result<Response, HttpError> {
+/// Returns the original object URL of the current available artwork.
+#[cfg_attr(feature = "swagger", utoipa::path(
+    get, path = "/api/v1/chapters/{chapter_id}/artwork/export", tag = "chapter-port",
+    params(("chapter_id" = String, Path, description = "Chapter ID")),
+    responses(
+        (status = 200, description = "Artwork identity and original download URL", body = HttpBody<ExportChapterArtworkVal>),
+        (status = 403, description = "Chapter export access required"),
+        (status = 422, description = "Chapter artwork is unavailable"),
+    ),
+))]
+#[instrument(level = "info", skip_all)]
+pub async fn export_artwork(
+    State(harn): State<AppHarn>,
+    Path(chapter_id): Path<String>,
+    Extension(user_token): Extension<UserToken>,
+) -> HttpResult<ExportChapterArtworkVal> {
     //
-    Response::builder()
-        .status(StatusCode::OK)
-        .header(CONTENT_TYPE, payload.content_type)
-        .body(Body::from(payload.body))
-        .map_err(|err| {
-            //
-            tracing::error!(
-                operation = "build_inline_export_response",
-                sdk_err = ?err,
-                "HTTP SDK response build error",
-            );
-
-            HttpError::internal()
-        })
-}
-
-// Builds a `200 OK` attachment response with MIME type and filename header.
-fn download_response(
-    filename_base: &str,
-    payload: TranslationExportPayload,
-) -> Result<Response, HttpError> {
-    //
-    let filename = format!("{}.{}", filename_base, payload.ext);
-
-    Response::builder()
-        .status(StatusCode::OK)
-        .header(CONTENT_TYPE, payload.content_type)
-        .header(
-            CONTENT_DISPOSITION,
-            format!("attachment; filename=\"{filename}\""),
-        )
-        .body(Body::from(payload.body))
-        .map_err(|err| {
-            //
-            tracing::error!(
-                operation = "build_download_export_response",
-                sdk_err = ?err,
-                "HTTP SDK response build error",
-            );
-
-            HttpError::internal()
-        })
+    usecase::chapter_port::artwork::export_artwork::<
+        RdbContext<ReptRead>,
+        HybRepo,
+        _,
+    >((harn.repo(), harn.obj_dept()), user_token, chapter_id)
+    .await?
+    .accept(StatusCode::OK)
 }

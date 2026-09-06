@@ -1,5 +1,5 @@
-// import(import)(positive): proofreader imports real LabelPlus material transactionally.
-// import(import)(negative): page-count mismatch rejects import and leaves units and counters unchanged.
+// import_translation(import)(positive): proofreader imports real LabelPlus material transactionally.
+// import_translation(import)(negative): page-count mismatch rejects import and leaves units and counters unchanged.
 
 use super::*;
 
@@ -247,7 +247,7 @@ async fn import_label_plus_material_updates_units_and_counts() {
 
     seed_material_pages(&mock);
 
-    let imported = import(
+    let imported = import_translation(
         (&mock, &mock),
         token("user-1"),
         ImportChapterTranslationInstr {
@@ -306,7 +306,7 @@ async fn import_label_plus_material_updates_units_and_counts() {
 
     assert_eq!(chapter_info.proofread_unit_count, 65);
 
-    let imported_again = import(
+    let imported_again = import_translation(
         (&mock, &mock),
         token("user-1"),
         ImportChapterTranslationInstr {
@@ -352,7 +352,7 @@ async fn import_rejects_page_count_mismatch_without_mutation() {
 
     mock.seed_unit(unit("unit-a", "page-1", 0, "old"));
 
-    let err = import(
+    let err = import_translation(
         (&mock, &mock),
         token("user-1"),
         ImportChapterTranslationInstr {
@@ -387,7 +387,7 @@ async fn import_replaces_units_and_clears_empty_pages() {
     mock.seed_unit(unit("unit-a", "page-1", 0, "old page one"));
     mock.seed_unit(unit("unit-b", "page-2", 0, "old page two"));
 
-    let imported = import(
+    let imported = import_translation(
         (&mock, &mock),
         token("user-1"),
         ImportChapterTranslationInstr {
@@ -435,7 +435,7 @@ async fn import_keep_preserves_visible_page_units() {
     mock.seed_unit(unit("unit-a", "page-1", 0, "old page one"));
     mock.seed_unit(unit("unit-b", "page-2", 0, "old page two"));
 
-    let imported = import(
+    let imported = import_translation(
         (&mock, &mock),
         token("user-1"),
         ImportChapterTranslationInstr {
@@ -490,7 +490,7 @@ async fn import_keep_reuses_page_with_only_hidden_units() {
     hidden_unit.hidden_at = Some(OffsetDateTime::now_utc());
     mock.seed_unit(hidden_unit);
 
-    let imported = import(
+    let imported = import_translation(
         (&mock, &mock),
         token("user-1"),
         ImportChapterTranslationInstr {

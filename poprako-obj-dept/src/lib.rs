@@ -88,6 +88,7 @@ where
         for<'a> MarkObjUploaded<'a, K>,
     ),
     step(
+        for<'a> MarkObjUploaded<'a, K>,
         for<'a> ListObjMetas<'a, K>,
         for<'a> GenObjSlot<'a, K>,
         for<'a> GenObjSlots<'a, K>,

@@ -1,5 +1,7 @@
 /// Announcement value types.
 pub mod announcement;
+/// Chapter artwork identities.
+pub mod artwork;
 /// Assignment value types.
 pub mod assignment;
 /// Chapter value types (stage, stage phase, stage oper).

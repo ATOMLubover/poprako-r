@@ -19,7 +19,7 @@ use crate::part::effect::event::chapter::{
 };
 use crate::part::effect::{Develop, EffectEvent as _};
 use crate::part::nucl::ReptRead;
-use crate::part::obj_dept::PageImage;
+use crate::part::obj_dept::{ChapterArtwork, PageImage};
 use crate::part::repo::assignment::AssignmentRepo;
 use crate::part::repo::chapter::ChapterRepo;
 use crate::part::repo::chapter_workflow_record::ChapterWorkflowRecordRepo;
@@ -173,7 +173,7 @@ where
         + PageRepo<C>
         + Send
         + Sync,
-    O: ObjDept<PageImage, C> + Send + Sync,
+    O: ObjDept<ChapterArtwork, C> + ObjDept<PageImage, C> + Send + Sync,
     D: Develop + Send + Sync,
 {
     let stage = Stage::from(instr.stage);
@@ -246,7 +246,7 @@ where
                     && !was_published
                     && next_phase == StagePhase::Completed
                 {
-                    clean_uploaded_images(
+                    clear_chapter_files(
                         repo,
                         obj_dept,
                         context,
@@ -330,8 +330,8 @@ where
     )
 }
 
-// Clear uploaded page images and enqueue their object-storage deletions.
-async fn clean_uploaded_images<C, R, O>(
+// Clear chapter artwork and page images and defer their object-storage deletions.
+async fn clear_chapter_files<C, R, O>(
     repo: &R,
     obj_dept: &O,
     context: &mut C,
@@ -340,8 +340,13 @@ async fn clean_uploaded_images<C, R, O>(
 where
     C: Context,
     R: PageRepo<C> + Sync,
-    O: ObjDept<PageImage, C> + Sync,
+    O: ObjDept<ChapterArtwork, C> + ObjDept<PageImage, C> + Sync,
 {
+    ClearObjs::<ChapterArtwork>::new(&[chapter_id.to_owned()])
+        .step_on(obj_dept, context)
+        .await
+        .map_err(BaseError::from)?;
+
     let page_infos =
         ListPageInfos { chapter_id }.step_on(repo, context).await?;
 

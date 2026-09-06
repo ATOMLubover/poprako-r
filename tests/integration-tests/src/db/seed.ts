@@ -250,6 +250,7 @@ export async function cleanupToSeed(): Promise<void> {
             await client.queryObject(`DELETE FROM "t_user_avatar"`);
             await client.queryObject(`DELETE FROM "t_team_avatar"`);
             await client.queryObject(`DELETE FROM "t_comic_cover"`);
+            await client.queryObject(`DELETE FROM "t_chapter_artwork"`);
 
             // 5. Memberships and invitations (depend on team + user).
             await client.queryObject(`DELETE FROM "t_member" WHERE "f_id" != $1`, [DEFAULT_MEMBER_ID]);

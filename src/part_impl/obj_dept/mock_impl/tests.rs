@@ -504,3 +504,31 @@ async fn batch_slots_reject_duplicate_ids_before_mutation() {
 
     assert!(snapshot.obj_tasks.is_empty());
 }
+
+// artwork_key_mapping(ChapterArtwork)(negative): artwork keys round-trip arbitrary safe file suffixes and reject malformed identities.
+#[test]
+fn artwork_key_mapping_rejects_noncanonical_paths() {
+    use crate::part::obj_dept::ChapterArtwork;
+    use crate::value::artwork::ChapterArtworkKey;
+
+    let artwork_key = ChapterArtworkKey {
+        chapter_id: "chapter-123".into(),
+        ext: "PSD".into(),
+    };
+
+    let physical_key = ChapterArtwork::forward(&artwork_key, 3);
+
+    assert_eq!(
+        ChapterArtwork::reverse(&physical_key).unwrap(),
+        (artwork_key, 3)
+    );
+
+    for invalid_key in [
+        "chapter_artwork/chapter-123-03.PSD",
+        "chapter_artwork/chapter-123-3../zip",
+        "page/chapter-123-3.zip",
+        "chapter_artwork/-3.zip",
+    ] {
+        assert!(ChapterArtwork::reverse(&invalid_key.to_owned()).is_err());
+    }
+}

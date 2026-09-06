@@ -13,7 +13,9 @@ use poprako_obj_dept::ObjDept;
 use poprako_rdb_core::RdbCore;
 
 use crate::part::nucl::ReptRead;
-use crate::part::obj_dept::{ComicCover, PageImage, TeamAvatar};
+use crate::part::obj_dept::{
+    ChapterArtwork, ComicCover, PageImage, TeamAvatar,
+};
 use crate::part_impl::nucl::rdb_impl::RdbNucl;
 use crate::part_impl::repo::HybRepo;
 use crate::result::BaseRest;
@@ -48,7 +50,8 @@ pub fn spawn<O>(
     token: CancellationToken,
 ) -> watch::Receiver<bool>
 where
-    O: ObjDept<PageImage, RdbContext<ReptRead>>
+    O: ObjDept<ChapterArtwork, RdbContext<ReptRead>>
+        + ObjDept<PageImage, RdbContext<ReptRead>>
         + ObjDept<ComicCover, RdbContext<ReptRead>>
         + ObjDept<TeamAvatar, RdbContext<ReptRead>>
         + Send

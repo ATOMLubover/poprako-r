@@ -126,3 +126,230 @@ async fn cleanup(shared: &RdbCore) {
 
     assert_eq!(remaining, 0);
 }
+
+// A deterministic pool keeps RDB lifecycle tests independent of remote storage.
+#[derive(Clone)]
+struct ArtworkTestPool;
+
+impl poprako_obj_dept::pool::ObjPoolView for ArtworkTestPool {
+    async fn gen_urls(
+        &self,
+        _key: &str,
+        _spec: poprako_obj_dept::model::url::ObjUrlSpec,
+    ) -> poprako_obj_dept::rest::ObjDeptRest<
+        poprako_obj_dept::model::url::ObjUrls,
+    > {
+        Ok(poprako_obj_dept::model::url::ObjUrls {
+            origin_url: None,
+            optimized_url: None,
+            thumbnail_url: None,
+        })
+    }
+
+    async fn has(
+        &self,
+        _key: &str,
+    ) -> poprako_obj_dept::rest::ObjDeptRest<bool> {
+        Ok(true)
+    }
+}
+
+impl poprako_obj_dept::pool::ObjPool for ArtworkTestPool {
+    async fn gen_slot(
+        &self,
+        key: &str,
+        _content_type: &str,
+        _byte_len: u64,
+    ) -> poprako_obj_dept::rest::ObjDeptRest<
+        poprako_obj_dept::model::slot::ObjPoolSlot,
+    > {
+        Ok(poprako_obj_dept::model::slot::ObjPoolSlot {
+            url: url::Url::parse(&format!("https://obj.test/{key}")).unwrap(),
+            headers: Default::default(),
+            expires_at: OffsetDateTime::now_utc() + Duration::minutes(10),
+        })
+    }
+
+    async fn del(&self, _key: &str) -> poprako_obj_dept::rest::ObjDeptRest<()> {
+        Ok(())
+    }
+}
+
+// artwork_transactional_mark(MarkObjUploaded)(negative): rollback preserves unavailable state and concurrent replacement cannot inherit an old confirmation.
+pub async fn artwork_transactional_mark(shared: RdbCore) {
+    use crate::part::nucl::ReptRead;
+    use crate::part::obj_dept::ChapterArtwork;
+    use crate::part_impl::nucl::rdb_impl::RdbNucl;
+    use crate::result::{BaseError, accept};
+    use crate::value::artwork::ChapterArtworkKey;
+    use poprako_obj_dept::key::ObjGen;
+    use poprako_obj_dept::model::slot::ObjSlotSpec;
+    use poprako_obj_dept::oper::{
+        ClearObjs, GenObjSlot, ListObjMetas, MarkObjUploaded,
+    };
+    use poprako_orchestra::{Nucl as _, OperRun as _, OperStep as _};
+
+    let nucl = RdbNucl::<ReptRead>::new(shared.clone());
+
+    let dept = super::NormObjDept::new(
+        shared.clone(),
+        ArtworkTestPool,
+        super::RdbObjProm::new(shared.clone()),
+    );
+
+    dept.close().await;
+
+    let chapter_id = "rdb-test-artwork-transaction";
+
+    let artwork_spec = ObjSlotSpec {
+        dom: ChapterArtworkKey {
+            chapter_id: chapter_id.into(),
+            ext: "zip".into(),
+        },
+        hash: &[1; 32],
+        content_type: "application/octet-stream",
+        byte_len: 1024,
+    };
+
+    let slot = nucl
+        .coord(async |context| {
+            GenObjSlot::<ChapterArtwork>::new(&artwork_spec)
+                .step_on(&dept, context)
+                .await
+        })
+        .await
+        .unwrap()
+        .unwrap();
+
+    let generation = ObjGen {
+        id: chapter_id.into(),
+        ver: slot.key.ver,
+    };
+
+    let rollback = nucl
+        .coord(async |context| {
+            let marked = MarkObjUploaded::<ChapterArtwork>::new(&generation)
+                .step_on(&dept, context)
+                .await
+                .map_err(BaseError::from)?;
+
+            assert!(marked);
+
+            Err::<(), _>(BaseError::Unrecoverable {
+                message: "deliberate transaction failure".into(),
+            })
+        })
+        .await;
+
+    assert!(rollback.is_err());
+
+    let metas = ListObjMetas::<ChapterArtwork>::new(&[chapter_id])
+        .run_on(&dept)
+        .await
+        .unwrap();
+
+    assert!(!metas[chapter_id].is_avail);
+
+    let replacement_spec = ObjSlotSpec {
+        hash: &[2; 32],
+        ..artwork_spec
+    };
+
+    let (replacement, confirmation) = tokio::join!(
+        nucl.coord(async |context| GenObjSlot::<ChapterArtwork>::new(
+            &replacement_spec
+        )
+        .step_on(&dept, context)
+        .await),
+        nucl.coord(async |context| MarkObjUploaded::<ChapterArtwork>::new(
+            &generation
+        )
+        .step_on(&dept, context)
+        .await),
+    );
+
+    // Repeatable-read can abort one contender; retry only that failed operation.
+    let replacement = match replacement {
+        Ok(slot) => slot.unwrap(),
+        Err(_) => nucl
+            .coord(async |context| {
+                GenObjSlot::<ChapterArtwork>::new(&replacement_spec)
+                    .step_on(&dept, context)
+                    .await
+            })
+            .await
+            .unwrap()
+            .unwrap(),
+    };
+
+    let _ = confirmation;
+
+    assert!(replacement.key.ver > generation.ver);
+
+    let metas = ListObjMetas::<ChapterArtwork>::new(&[chapter_id])
+        .run_on(&dept)
+        .await
+        .unwrap();
+
+    assert!(!metas[chapter_id].is_avail);
+
+    let stale = nucl
+        .coord(async |context| {
+            MarkObjUploaded::<ChapterArtwork>::new(&generation)
+                .step_on(&dept, context)
+                .await
+        })
+        .await
+        .unwrap();
+
+    assert!(!stale);
+
+    let current_generation = ObjGen {
+        id: chapter_id.into(),
+        ver: replacement.key.ver,
+    };
+
+    nucl.coord(async |context| {
+        let marked =
+            MarkObjUploaded::<ChapterArtwork>::new(&current_generation)
+                .step_on(&dept, context)
+                .await
+                .map_err(BaseError::from)?;
+
+        assert!(marked);
+
+        ClearObjs::<ChapterArtwork>::new(&[chapter_id.to_owned()])
+            .step_on(&dept, context)
+            .await
+            .map_err(BaseError::from)?;
+
+        let marked_after_clear =
+            MarkObjUploaded::<ChapterArtwork>::new(&current_generation)
+                .step_on(&dept, context)
+                .await
+                .map_err(BaseError::from)?;
+
+        assert!(!marked_after_clear);
+
+        accept(())
+    })
+    .await
+    .unwrap();
+    let mut conn = shared.get().await.unwrap();
+
+    diesel::delete(
+        t_obj_prom_task::table.filter(t_obj_prom_task::f_obj_id.eq(chapter_id)),
+    )
+    .execute(&mut conn)
+    .await
+    .unwrap();
+
+    use crate::part_impl::repo::rdb_impl::schema::t_chapter_artwork;
+
+    diesel::delete(
+        t_chapter_artwork::table.filter(t_chapter_artwork::f_id.eq(chapter_id)),
+    )
+    .execute(&mut conn)
+    .await
+    .unwrap();
+}

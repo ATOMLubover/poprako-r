@@ -364,7 +364,7 @@ administrator must remain transactionally safe.
   one query per result:
   [`src/part_impl/repo/rdb_impl/incl/macros.rs`](../src/part_impl/repo/rdb_impl/incl/macros.rs#L20).
 - Chapter translation export fetches all Units for all Page IDs in one query:
-  [`src/usecase/chapter_port/export.rs`](../src/usecase/chapter_port/export.rs#L96).
+  [`src/usecase/chapter_port/export_translation.rs`](../src/usecase/chapter_port/export_translation.rs#L96).
 - Edited-diff Page detection uses a correlated `EXISTS` predicate:
   [`src/part_impl/repo/rdb_impl/page/step_impl.rs`](../src/part_impl/repo/rdb_impl/page/step_impl.rs#L141).
 - System-mail read marking validates a projected batch and updates the batch in

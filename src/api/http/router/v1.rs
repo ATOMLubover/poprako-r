@@ -178,15 +178,27 @@ pub fn v1_chapter_router() -> Router<AppHarn> {
         )
         .route(
             "/chapters/{chapter_id}/translations/import",
-            post(chapter_port::import),
+            post(chapter_port::import_translation),
         )
         .route(
             "/chapters/{chapter_id}/translations/export",
-            get(chapter_port::export),
+            get(chapter_port::export_translation),
         )
         .route(
             "/chapters/{chapter_id}/translations/export/download",
-            get(chapter_port::export_download),
+            get(chapter_port::export_translation_download),
+        )
+        .route(
+            "/chapters/{chapter_id}/artwork/alloc",
+            post(chapter_port::alloc_artwork),
+        )
+        .route(
+            "/chapters/{chapter_id}/artwork/mark-uploaded",
+            post(chapter_port::mark_artwork_uploaded),
+        )
+        .route(
+            "/chapters/{chapter_id}/artwork/export",
+            get(chapter_port::export_artwork),
         )
 }
 

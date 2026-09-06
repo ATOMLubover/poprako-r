@@ -11,7 +11,7 @@ use crate::model::read::proj::subtree_delete::SubtreeDeleteScope;
 use crate::model::shared::user::UserToken;
 use crate::model::write::chapter::ChapterPatch;
 use crate::part::nucl::Serial;
-use crate::part::obj_dept::PageImage;
+use crate::part::obj_dept::{ChapterArtwork, PageImage};
 use crate::part::repo::chapter::ChapterRepo;
 use crate::part::repo::comic::ComicRepo;
 use crate::part::repo::member::MemberRepo;
@@ -27,7 +27,7 @@ use crate::part::repo::oper::subtree_delete::{
 };
 use crate::part::repo::subtree_delete::SubtreeRepo;
 use crate::result::{BaseError, BaseRest, ExpectedVariant, accept};
-use crate::usecase::internal::subtree_delete::delete_page_objs;
+use crate::usecase::internal::subtree_delete::delete_chapter_objs;
 
 /// Deletes one chapter and its descendant core records.
 #[instrument(level = "info", skip(nucl, repo, obj_dept, token), fields(actor_user_id = %token.user_id))]
@@ -46,7 +46,7 @@ where
         + MemberRepo<C>
         + Send
         + Sync,
-    O: ObjDept<PageImage, C> + Send + Sync,
+    O: ObjDept<ChapterArtwork, C> + ObjDept<PageImage, C> + Send + Sync,
 {
     nucl.coord(async move |context| {
         //
@@ -81,7 +81,7 @@ where
 
         ChapterPermComplex::ensure_user_can_delete(&member_info)?;
 
-        delete_page_objs(repo, obj_dept, context, &delete_scope).await?;
+        delete_chapter_objs(repo, obj_dept, context, &delete_scope).await?;
 
         DeleteSubtree {
             scope: &delete_scope,

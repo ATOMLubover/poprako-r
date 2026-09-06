@@ -63,3 +63,15 @@ block. Every current module exports `IMPLEMENTED = true`.
 
 When a test reveals a contract change, update the tested source, the relevant module assertion, and any affected active
 API document together.
+
+## it_13 — Chapter artwork port
+
+- AW1: assignment permission and size/extension rejection without allocation.
+- AW2: signed direct PUT size/headers, optimistic confirmation, origin URL export by team members, deduplication, and
+  one completion record.
+- AW3: an old confirmation after replacement allocation cannot make the new generation available; stale versions are
+  rejected and completion stays idempotent.
+- AW4: publication clears artwork and freezes new allocation/confirmation.
+- AW5: comic archival and ancestor deletion retire artwork and record durable deletion tasks.
+
+The main runner now includes it_13. Final database cleanup also deletes `t_chapter_artwork` rows.

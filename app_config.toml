@@ -7,3 +7,7 @@ user_avatar_limit = 1
 team_avatar_limit = 1
 comic_cover_limit = 2
 page_image_limit = 30
+
+[artwork]
+# Maximum chapter artwork upload size in MiB.
+chapter_artwork_limit = 512

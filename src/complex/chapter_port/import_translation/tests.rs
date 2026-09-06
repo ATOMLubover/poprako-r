@@ -16,7 +16,8 @@ const LABEL_PLUS_MATERIAL: &str =
 #[test]
 fn parse_label_plus_parses_real_material() {
     //
-    let pages = ChapterImportComplex::parse_label_plus(LABEL_PLUS_MATERIAL);
+    let pages =
+        ChapterTranslationImportComplex::parse_label_plus(LABEL_PLUS_MATERIAL);
 
     let pages = match pages {
         //
@@ -49,7 +50,7 @@ fn parse_label_plus_parses_real_material() {
 #[test]
 fn parse_poprako_preserves_zero_based_indexes() {
     //
-    let pages = ChapterImportComplex::parse_poprako(
+    let pages = ChapterTranslationImportComplex::parse_poprako(
         r#"{
             "chapter_id": "chapter-1",
             "chapter_index": 0,
@@ -104,9 +105,10 @@ fn parse_poprako_preserves_zero_based_indexes() {
 fn build_unit_create_produces_a_complete_create() {
     //
     let pages =
-        ChapterImportComplex::parse_label_plus(LABEL_PLUS_MATERIAL).unwrap();
+        ChapterTranslationImportComplex::parse_label_plus(LABEL_PLUS_MATERIAL)
+            .unwrap();
 
-    let edit = ChapterImportComplex::build_unit_create(
+    let edit = ChapterTranslationImportComplex::build_unit_create(
         &pages[0].units[0],
         "unit-new".to_string(),
         "proofreader-1",
@@ -140,7 +142,8 @@ fn parse_label_plus_accepts_bom_crlf_and_structure_trailing_whitespace() {
         " translated  \r\n",
     );
 
-    let pages = ChapterImportComplex::parse_label_plus(content).unwrap();
+    let pages =
+        ChapterTranslationImportComplex::parse_label_plus(content).unwrap();
 
     assert_eq!(pages.len(), 1);
     assert!(matches!(
@@ -164,7 +167,7 @@ fn parse_poprako_rejects_duplicate_page_indexes() {
         ]
     }"#;
 
-    assert!(ChapterImportComplex::parse_poprako(content).is_err());
+    assert!(ChapterTranslationImportComplex::parse_poprako(content).is_err());
 }
 
 #[test]
@@ -232,7 +235,8 @@ fn parse_poprako_roundtrips_shared_view_and_sorts_indexes() {
     };
 
     let content = serde_json::to_string(&document).unwrap();
-    let pages = ChapterImportComplex::parse_poprako(&content).unwrap();
+    let pages =
+        ChapterTranslationImportComplex::parse_poprako(&content).unwrap();
 
     assert_eq!(pages[0].page_index, 0);
     assert_eq!(pages[0].units[0].index, 0);

@@ -5,9 +5,9 @@ use crate::model::read::proj::page::PageInfo;
 use crate::model::read::proj::unit::UnitInfo;
 
 /// Chapter export formatting rules.
-pub struct ChapterExportComplex;
+pub struct ChapterTranslationExportComplex;
 
-impl ChapterExportComplex {
+impl ChapterTranslationExportComplex {
     /// Converts pages and units into `LabelPlus` text.
     pub fn make_label_plus(
         pages: &[PageInfo],
@@ -43,7 +43,7 @@ impl ChapterExportComplex {
                 //
                 tracing::error!(
                     err = %error,
-                    "[ChapterExportComplex::make_label_plus] failed to write page header",
+                    "[ChapterTranslationExportComplex::make_label_plus] failed to write page header",
                 );
             });
 
@@ -67,7 +67,7 @@ impl ChapterExportComplex {
                     //
                     tracing::error!(
                         err = %error,
-                        "[ChapterExportComplex::make_label_plus] failed to write unit line",
+                        "[ChapterTranslationExportComplex::make_label_plus] failed to write unit line",
                     );
                 });
 

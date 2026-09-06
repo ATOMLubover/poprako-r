@@ -1,5 +1,7 @@
 //! Application configuration loaded from a TOML file at startup.
 
+/// Chapter artwork upload configuration.
+pub mod artwork;
 /// HTTP server configuration.
 pub mod http;
 /// Image upload configuration.
@@ -11,6 +13,7 @@ mod tests;
 use anyhow::Context as _;
 use serde::Deserialize;
 
+use crate::config::artwork::ArtworkConfig;
 use crate::config::http::HttpConfig;
 use crate::config::image::ImageConfig;
 
@@ -26,6 +29,10 @@ pub struct AppConfig {
 
     /// Image upload configuration.
     pub image: ImageConfig,
+
+    /// Chapter artwork upload limits.
+    #[serde(default)]
+    pub artwork: ArtworkConfig,
 }
 
 impl AppConfig {
@@ -71,6 +78,8 @@ impl AppConfig {
         let config = toml::from_str::<Self>(content)?;
 
         config.image.validate()?;
+
+        config.artwork.validate()?;
 
         Ok(config)
     }

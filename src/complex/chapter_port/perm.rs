@@ -29,7 +29,7 @@ pub struct ChapterPortPermComplex;
 
 impl ChapterPortPermComplex {
     /// Verify the caller may export chapter translations.
-    pub fn ensure_user_can_export(
+    pub fn ensure_user_can_export_translation(
         access: &ChapterExportAccess<'_>,
     ) -> BaseRest<()> {
         //
@@ -74,7 +74,7 @@ impl ChapterPortPermComplex {
     }
 
     /// Verify the caller may import chapter translations.
-    pub fn ensure_user_can_import(
+    pub fn ensure_user_can_import_translation(
         assignment_info: &AssignmentInfo,
     ) -> BaseRest<()> {
         //
