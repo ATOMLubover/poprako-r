@@ -24,6 +24,7 @@ import {
 } from "../http/fixtures.ts";
 import { titled } from "../state/prefix.ts";
 import type { RunCtx } from "../state/runCtx.ts";
+import { PHASE, stagePhase } from "../state/stages.ts";
 
 export const IMPLEMENTED = true as const;
 
@@ -380,6 +381,24 @@ export async function runIt05Module(ctx: RunCtx): Promise<void> {
 
     const gangtieId = ctx.ids.comicIds["钢铁魔女"]!;
     const f10Chapter = await createChapter(ctx.sadmin, gangtieId, titled("第 7 话 F10导入"));
+
+    const guest01 = ctx.users.get("guest_01")!;
+
+    await exportPoprako(guest01.api, f10Chapter.id);
+
+    const chapterAfterUnassignedMemberExport = await getChapter(
+        ctx.sadmin,
+        f10Chapter.id,
+    );
+
+    assert.assertEquals(
+        stagePhase(
+            chapterAfterUnassignedMemberExport.stages,
+            "typeset-redraw",
+        ),
+        PHASE.PENDING,
+        "an unassigned team member export must not start typeset/redraw",
+    );
 
     await grantChapterWorkerRoles(f10Chapter.id, ctx.ids.defaultUserId);
 

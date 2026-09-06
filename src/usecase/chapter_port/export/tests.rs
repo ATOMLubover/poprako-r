@@ -7,6 +7,7 @@ use time::OffsetDateTime;
 use crate::model::read::proj::assignment::AssignmentInfo;
 use crate::model::read::proj::chapter::ChapterInfo;
 use crate::model::read::proj::comic::ComicInfo;
+use crate::model::read::proj::member::MemberInfo;
 use crate::model::read::proj::page::PageInfo;
 use crate::model::read::proj::unit::UnitInfo;
 use crate::model::read::proj::workset::WorksetInfo;
@@ -104,6 +105,24 @@ fn assignment(
         roles: role_mask,
         created_at: time,
         updated_at: time,
+    }
+}
+
+fn member(user_id: &str) -> MemberInfo {
+    //
+    MemberInfo {
+        id: format!("member-{user_id}"),
+
+        user_id: user_id.into(),
+        user_nickname: user_id.into(),
+        user_last_active_at: OffsetDateTime::now_utc(),
+
+        team_id: "team-1".into(),
+
+        user: None,
+        team: None,
+
+        roles: RoleMask::from(RoleField::TRANSLATOR),
     }
 }
 
@@ -266,5 +285,41 @@ async fn export_returns_both_formats_and_records_one_export() {
             next_phase: StagePhase::Active,
             ..
         }
+    ));
+}
+
+#[tokio::test]
+async fn export_by_unassigned_team_member_does_not_start_typeset_redraw() {
+    //
+    let mock = Mock::new();
+
+    seed_scope(&mock);
+
+    mock.seed_member(member("team-member"));
+
+    let exported = export(
+        (&mock, &mock, &mock),
+        token("team-member"),
+        "chapter-1".into(),
+        ExportFormatSpec::POPRAKO,
+    )
+    .await;
+
+    assert!(exported.is_ok());
+
+    let snapshot = mock.snapshot();
+
+    assert!(
+        snapshot.chapters[0]
+            .stages
+            .has_phase(Stage::TypesetRedraw, StagePhase::Pending)
+    );
+
+    assert_eq!(snapshot.chapter_workflow_records.len(), 1);
+
+    assert!(matches!(
+        &snapshot.chapter_workflow_records[0].payload,
+        ChapterWorkflowRecordPayload::TranslationExported { formats }
+            if *formats == ExportFormatSpec::POPRAKO
     ));
 }
