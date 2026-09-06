@@ -554,7 +554,7 @@ cargo test -p poprako-obj-dept-macro
 cargo test -p poprako-server --lib
 cargo clippy --all-targets --all-features -- -D warnings
 scripts/check-rust-lines.sh
-cd tests/integration-tests && pnpm typecheck
+cd tests/integration-tests && deno task check
 ```
 
 Also scan touched Rust for database-prefix leakage. `f_` identifiers are valid

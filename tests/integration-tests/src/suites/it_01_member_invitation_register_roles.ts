@@ -30,18 +30,13 @@
 //     multi-bit values at the query-extractor level → 422 (raw serde
 //     rejection, no `code` field), so we only assert the status there.
 
-import assert from "node:assert/strict";
+import * as assert from "@std/assert";
 
-import { testEnv } from "../config/env.js";
-import {
-    expectError,
-    expectStatus,
-} from "../http/assertions.js";
-import type { ErrorBody } from "../http/apiClient.js";
-import { ApiClient } from "../http/apiClient.js";
-import {
-    assertMemberListWellFormed,
-} from "../http/invariants.js";
+import { testEnv } from "../config/env.ts";
+import { expectError, expectStatus } from "../http/assertions.ts";
+import type { ErrorBody } from "../http/apiClient.ts";
+import { ApiClient } from "../http/apiClient.ts";
+import { assertMemberListWellFormed } from "../http/invariants.ts";
 import {
     createMemberInvitation,
     deleteMemberInvitation,
@@ -52,15 +47,10 @@ import {
     registerInvitee,
     updateMemberInvitationRoles,
     updateMemberRoles,
-} from "../http/fixtures.js";
-import { nickname, password, qid, runPrefix } from "../state/prefix.js";
-import { ROLE, ROLE_MASK } from "../state/roles.js";
-import {
-    DEFAULT_TEAM_PERSONAS,
-    type MemberPersona,
-    type RunCtx,
-    type UserClient,
-} from "../state/runCtx.js";
+} from "../http/fixtures.ts";
+import { nickname, password, qid, runPrefix } from "../state/prefix.ts";
+import { ROLE, ROLE_MASK } from "../state/roles.ts";
+import { DEFAULT_TEAM_PERSONAS, type MemberPersona, type RunCtx, type UserClient } from "../state/runCtx.ts";
 
 export const IMPLEMENTED = true as const;
 
@@ -88,9 +78,9 @@ export async function runIt01Module(ctx: RunCtx): Promise<void> {
             persona.roles,
         );
 
-        assert.ok(invitation.id);
-        assert.ok(invitation.code);
-        assert.ok(!seenCodes.has(invitation.code), "invitation codes must be unique");
+        assert.assert(invitation.id);
+        assert.assert(invitation.code);
+        assert.assert(!seenCodes.has(invitation.code), "invitation codes must be unique");
         seenCodes.add(invitation.code);
 
         invitations.set(persona.persona, { id: invitation.id, code: invitation.code });
@@ -102,16 +92,16 @@ export async function runIt01Module(ctx: RunCtx): Promise<void> {
     for (const persona of personas) {
         const inv = invitations.get(persona.persona);
 
-        assert.ok(inv, `invitation for ${persona.persona} must exist`);
+        assert.assert(inv, `invitation for ${persona.persona} must exist`);
 
         const found = pendingList.find((item) => item.id === inv.id);
 
-        assert.ok(found, `pending list must include invitation for ${persona.persona}`);
-        assert.equal(found?.is_pending, true);
-        assert.equal(found?.team_id, teamId);
-        assert.equal(found?.invitee_qid, persona.qid);
-        assert.equal(found?.roles, persona.roles);
-        assert.equal(found?.invitor_id, ctx.ids.defaultUserId);
+        assert.assert(found, `pending list must include invitation for ${persona.persona}`);
+        assert.assertEquals(found?.is_pending, true);
+        assert.assertEquals(found?.team_id, teamId);
+        assert.assertEquals(found?.invitee_qid, persona.qid);
+        assert.assertEquals(found?.roles, persona.roles);
+        assert.assertEquals(found?.invitor_id, ctx.ids.defaultUserId);
     }
 
     // B1.6: duplicate invitee_qid for a still-pending invitation -> 422 code 2
@@ -131,7 +121,7 @@ export async function runIt01Module(ctx: RunCtx): Promise<void> {
     // B2.1: widen guest_01's roles to RAW | TRANSLATOR.
     const guestInv = invitations.get("guest_01");
 
-    assert.ok(guestInv, "guest_01 invitation must exist");
+    assert.assert(guestInv, "guest_01 invitation must exist");
 
     const widenedRoles = ROLE_MASK.RAW_OR_TRANSLATOR;
 
@@ -142,12 +132,12 @@ export async function runIt01Module(ctx: RunCtx): Promise<void> {
 
     const guestInvAfter = pendingAfterUpdate.find((item) => item.id === guestInv.id);
 
-    assert.equal(guestInvAfter?.roles, widenedRoles);
+    assert.assertEquals(guestInvAfter?.roles, widenedRoles);
 
     // Update the persona matrix so registration uses the widened roles.
     const guestPersona = personas.find((persona) => persona.persona === "guest_01");
 
-    assert.ok(guestPersona);
+    assert.assert(guestPersona);
     guestPersona.roles = widenedRoles;
 
     // B2.3: path id / body id mismatch -> 422 code 7.
@@ -201,7 +191,7 @@ export async function runIt01Module(ctx: RunCtx): Promise<void> {
     for (const persona of personas) {
         const inv = invitations.get(persona.persona);
 
-        assert.ok(inv, `invitation for ${persona.persona} must exist`);
+        assert.assert(inv, `invitation for ${persona.persona} must exist`);
 
         const { api, userId } = await registerInvitee(
             inv.code,
@@ -213,22 +203,22 @@ export async function runIt01Module(ctx: RunCtx): Promise<void> {
         // B3.2: /users/me returns the new user with is_sadmin=false.
         const me = await getMyInfo(api);
 
-        assert.equal(me.id, userId);
-        assert.equal(me.qid, persona.qid);
-        assert.equal(me.nickname, nickname(persona.persona));
-        assert.equal(me.is_sadmin, false);
+        assert.assertEquals(me.id, userId);
+        assert.assertEquals(me.qid, persona.qid);
+        assert.assertEquals(me.nickname, nickname(persona.persona));
+        assert.assertEquals(me.is_sadmin, false);
 
         // B3.3 + B3.4: /members/me returns exactly one default-team member
         // with roles equal to the (possibly widened) invitation roles.
         const myMembers = await listMyMembers(api);
 
-        assert.equal(myMembers.length, 1);
+        assert.assertEquals(myMembers.length, 1);
 
         const member = myMembers[0];
 
-        assert.ok(member);
-        assert.equal(member?.team_id, teamId);
-        assert.equal(member?.roles, persona.roles);
+        assert.assert(member);
+        assert.assertEquals(member?.team_id, teamId);
+        assert.assertEquals(member?.roles, persona.roles);
 
         const userClient: UserClient = {
             persona: persona.persona,
@@ -285,7 +275,7 @@ export async function runIt01Module(ctx: RunCtx): Promise<void> {
         const inv = invitations.get(persona.persona)!;
         const stillPending = pendingAfterRegister.find((item) => item.id === inv.id);
 
-        assert.ok(!stillPending, `consumed invitation for ${persona.persona} must not be pending`);
+        assert.assert(!stillPending, `consumed invitation for ${persona.persona} must not be pending`);
     }
 
     // B3.8: consumed list (pending=false) contains all 14.
@@ -295,8 +285,8 @@ export async function runIt01Module(ctx: RunCtx): Promise<void> {
         const inv = invitations.get(persona.persona)!;
         const consumed = consumedList.find((item) => item.id === inv.id);
 
-        assert.ok(consumed, `consumed list must include invitation for ${persona.persona}`);
-        assert.equal(consumed?.is_pending, false);
+        assert.assert(consumed, `consumed list must include invitation for ${persona.persona}`);
+        assert.assertEquals(consumed?.is_pending, false);
     }
 
     // ---------- B4. member list filters and bad params ----------
@@ -304,13 +294,13 @@ export async function runIt01Module(ctx: RunCtx): Promise<void> {
     // B4.1: team mode returns 15 members (sadmin + 14).
     const teamMembers = await listTeamMembers(ctx.sadmin, teamId, "&incl=user");
 
-    assert.equal(teamMembers.length, 15);
+    assert.assertEquals(teamMembers.length, 15);
     assertMemberListWellFormed(teamMembers);
 
     // B4.3: incl=user embeds user with matching id.
     for (const member of teamMembers) {
-        assert.ok(member.user, "incl=user must embed the user");
-        assert.equal(member.user?.id, member.user_id);
+        assert.assert(member.user, "incl=user must embed the user");
+        assert.assertEquals(member.user?.id, member.user_id);
     }
 
     // B4.2: translator role filter returns only members whose roles contain
@@ -322,28 +312,22 @@ export async function runIt01Module(ctx: RunCtx): Promise<void> {
     );
 
     for (const member of translatorMembers) {
-        assert.ok(
+        assert.assert(
             (member.roles & ROLE.TRANSLATOR) !== 0,
             `role=TRANSLATOR filter returned member without translator bit: ${member.user_id}`,
         );
     }
-
-    const expectedTranslators = new Set(
-        personas
-            .filter((persona) => (persona.roles & ROLE.TRANSLATOR) !== 0)
-            .map((persona) => persona.persona),
-    );
 
     // Every translator persona is present in the filter result.
     for (const persona of personas) {
         if ((persona.roles & ROLE.TRANSLATOR) !== 0) {
             const userClient = ctx.users.get(persona.persona);
 
-            assert.ok(userClient, `${persona.persona} must be registered`);
+            assert.assert(userClient, `${persona.persona} must be registered`);
 
             const found = translatorMembers.find((member) => member.user_id === userClient.userId);
 
-            assert.ok(found, `translator filter must include ${persona.persona}`);
+            assert.assert(found, `translator filter must include ${persona.persona}`);
         }
     }
 
@@ -356,7 +340,7 @@ export async function runIt01Module(ctx: RunCtx): Promise<void> {
     );
 
     for (const member of fuzzyTrans) {
-        assert.ok(
+        assert.assert(
             member.nickname.includes(runPrefix + "trans"),
             `fuzzy_nickname=trans returned non-matching nickname: ${member.nickname}`,
         );
@@ -365,14 +349,14 @@ export async function runIt01Module(ctx: RunCtx): Promise<void> {
     // B4.4: owner mode returns trans_01's default-team membership.
     const trans01 = ctx.users.get("trans_01");
 
-    assert.ok(trans01);
+    assert.assert(trans01);
 
     const ownerMembers = await listMyMembers(trans01.api);
 
     const trans01Default = ownerMembers.find((member) => member.team_id === teamId);
 
-    assert.ok(trans01Default, "owner mode must return trans_01's default-team membership");
-    assert.equal(trans01Default?.user_id, trans01.userId);
+    assert.assert(trans01Default, "owner mode must return trans_01's default-team membership");
+    assert.assertEquals(trans01Default?.user_id, trans01.userId);
 
     // B4.5: both team_id and owner_id -> 422 code 2.
     expectError(
@@ -408,11 +392,11 @@ export async function runIt01Module(ctx: RunCtx): Promise<void> {
     // B5.1: sadmin widens guest_01's member roles to RAW | TRANSLATOR | PROOFREADER.
     const guest01 = ctx.users.get("guest_01");
 
-    assert.ok(guest01);
+    assert.assert(guest01);
 
     const guest01MemberId = guest01.memberIds[teamId];
 
-    assert.ok(guest01MemberId, "guest_01 must have a default-team member id");
+    assert.assert(guest01MemberId, "guest_01 must have a default-team member id");
 
     const guestWideRoles = ROLE_MASK.RAW_TRANS_PROOF;
 
@@ -423,7 +407,7 @@ export async function runIt01Module(ctx: RunCtx): Promise<void> {
 
     const guest01After = afterGuestUpdate.find((member) => member.id === guest01MemberId);
 
-    assert.equal(guest01After?.roles, guestWideRoles);
+    assert.assertEquals(guest01After?.roles, guestWideRoles);
 
     // Update the UserClient so later modules see the widened roles.
     guest01.roles = guestWideRoles;
@@ -431,11 +415,11 @@ export async function runIt01Module(ctx: RunCtx): Promise<void> {
     // B5.2: non-admin (trans_01) modifying proof_01's roles -> 403 code 4.
     const proof01 = ctx.users.get("proof_01");
 
-    assert.ok(proof01);
+    assert.assert(proof01);
 
     const proof01MemberId = proof01.memberIds[teamId];
 
-    assert.ok(proof01MemberId);
+    assert.assert(proof01MemberId);
 
     expectError(
         await trans01.api.put<ErrorBody>(
@@ -459,7 +443,7 @@ export async function runIt01Module(ctx: RunCtx): Promise<void> {
     // B5.4: non-admin (guest_01) deleting trans_01 member -> 403 code 4.
     const trans01MemberId = trans01.memberIds[teamId];
 
-    assert.ok(trans01MemberId);
+    assert.assert(trans01MemberId);
 
     expectError(
         await guest01.api.delete<ErrorBody>(`/api/v1/members/${trans01MemberId}`),
@@ -474,5 +458,5 @@ export async function runIt01Module(ctx: RunCtx): Promise<void> {
     // Verify the team still has 15 members after the perm-negative cases.
     const finalMembers = await listTeamMembers(ctx.sadmin, teamId);
 
-    assert.equal(finalMembers.length, 15);
+    assert.assertEquals(finalMembers.length, 15);
 }

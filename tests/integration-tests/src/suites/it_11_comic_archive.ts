@@ -14,11 +14,11 @@
 // inaccessibility, audit fields, object delete tasks, active-data cleanup,
 // and stable workset comic counts.
 
-import assert from "node:assert/strict";
+import * as assert from "@std/assert";
 
-import { grantChapterWorkerRoles, withDatabaseClient } from "../db/seed.js";
-import { expectError, expectSuccessData } from "../http/assertions.js";
-import type { ErrorBody, SuccessBody } from "../http/apiClient.js";
+import { grantChapterWorkerRoles, withDatabaseClient } from "../db/seed.ts";
+import { expectError, expectSuccessData } from "../http/assertions.ts";
+import type { ErrorBody, SuccessBody } from "../http/apiClient.ts";
 import {
     archiveComic,
     createChapter,
@@ -29,8 +29,8 @@ import {
     newPageManifest,
     reserveChapterPages,
     reserveComicCover,
-} from "../http/fixtures.js";
-import type { RunCtx } from "../state/runCtx.js";
+} from "../http/fixtures.ts";
+import type { RunCtx } from "../state/runCtx.ts";
 
 export const IMPLEMENTED = true as const;
 
@@ -80,7 +80,7 @@ export async function runIt11Module(ctx: RunCtx): Promise<void> {
 
     const guest = ctx.users.get("guest_01");
 
-    assert.ok(guest, "guest_01 must be registered by it_01");
+    assert.assert(guest, "guest_01 must be registered by it_01");
 
     expectError(
         await guest.api.post<ErrorBody>(`/api/v1/comics/${comic.id}/archive`),
@@ -91,39 +91,38 @@ export async function runIt11Module(ctx: RunCtx): Promise<void> {
     // ---------- snapshot pre-archive state ----------
 
     const workset_before_archive = await getWorkset(ctx.sadmin, workset.id);
-    const active_object_versions: ActiveObjectVersions =
-        await withDatabaseClient(async (client) => {
-            const [cover_result, page_result] = await Promise.all([
-                client.query<ActiveObjectVersion>(
-                    `SELECT "f_id" AS f_obj_id, "f_version" FROM "t_comic_cover" WHERE "f_id" = $1`,
-                    [comic.id],
-                ),
-                client.query<ActiveObjectVersion>(
-                    `
+    const active_object_versions: ActiveObjectVersions = await withDatabaseClient(async (client) => {
+        const [cover_result, page_result] = await Promise.all([
+            client.queryObject<ActiveObjectVersion>(
+                `SELECT "f_id" AS f_obj_id, "f_version" FROM "t_comic_cover" WHERE "f_id" = $1`,
+                [comic.id],
+            ),
+            client.queryObject<ActiveObjectVersion>(
+                `
                       SELECT page_image."f_id" AS f_obj_id, page_image."f_version"
                       FROM "t_page_image" page_image
                       JOIN "t_page" page ON page."f_id" = page_image."f_id"
                       WHERE page."f_chapter_id" = ANY($1)
                       ORDER BY page."f_chapter_id", page."f_index"
                     `,
-                    [[comic.chapter_id, chapter2.id]],
-                ),
-            ]);
+                [[comic.chapter_id, chapter2.id]],
+            ),
+        ]);
 
-            return {
-                cover: cover_result.rows[0]!,
-                pages: page_result.rows,
-            };
-        });
+        return {
+            cover: cover_result.rows[0]!,
+            pages: page_result.rows,
+        };
+    });
 
-    assert.equal(active_object_versions.cover.f_obj_id, comic.id);
-    assert.equal(active_object_versions.pages.length, 2);
+    assert.assertEquals(active_object_versions.cover.f_obj_id, comic.id);
+    assert.assertEquals(active_object_versions.pages.length, 2);
 
     // Archive requires every chapter to have completed publish. Set the
     // completed state directly so this scenario can retain object versions and
     // verify archive-side cleanup of the remaining sources.
     await withDatabaseClient(async (client) => {
-        await client.query(
+        await client.queryObject(
             `UPDATE "t_chapter" SET "f_published_at" = NOW() WHERE "f_id" = ANY($1)`,
             [[comic.chapter_id, chapter2.id]],
         );
@@ -133,7 +132,7 @@ export async function runIt11Module(ctx: RunCtx): Promise<void> {
 
     const archive_comic_val = await archiveComic(ctx.sadmin, comic.id);
 
-    assert.notEqual(archive_comic_val.archived_id, comic.id);
+    assert.assertNotEquals(archive_comic_val.archived_id, comic.id);
 
     // ---------- export selected archive month ----------
 
@@ -149,8 +148,8 @@ export async function runIt11Module(ctx: RunCtx): Promise<void> {
     );
     const exported_comics = exported_months[archive_month]!;
 
-    assert.equal(exported_comics.length, 1);
-    assert.equal(JSON.parse(exported_comics[0]!).source_comic_id, comic.id);
+    assert.assertEquals(exported_comics.length, 1);
+    assert.assertEquals(JSON.parse(exported_comics[0]!).source_comic_id, comic.id);
 
     // ---------- archived comic header remains available; children are removed ----------
 
@@ -158,14 +157,14 @@ export async function runIt11Module(ctx: RunCtx): Promise<void> {
         `/api/v1/comics/${comic.id}`,
     );
 
-    assert.equal(expectSuccessData(archived_comic, 200).is_archived, true);
+    assert.assertEquals(expectSuccessData(archived_comic, 200).is_archived, true);
 
     expectError(await ctx.sadmin.get<ErrorBody>(`/api/v1/chapters/${comic.chapter_id}`), 422, 2);
     expectError(await ctx.sadmin.get<ErrorBody>(`/api/v1/chapters/${chapter2.id}`), 422, 2);
 
     // ---------- child resources are inaccessible ----------
 
-    assert.deepEqual(
+    assert.assertEquals(
         expectSuccessData(
             await ctx.sadmin.get<SuccessBody<unknown[]>>(
                 `/api/v1/comics/${comic.id}/chapters?offset=0&limit=20`,
@@ -199,19 +198,19 @@ export async function runIt11Module(ctx: RunCtx): Promise<void> {
     const default_comics = await listWorksetComics(ctx.sadmin, workset.id);
     const active_comics = await listWorksetComics(ctx.sadmin, workset.id, "&status=active");
 
-    assert.equal(archived_workset.comic_count, workset_before_archive.comic_count);
-    assert.ok(default_comics.some((comic_info) => comic_info.id === comic.id));
-    assert.ok(!active_comics.some((active_comic) => active_comic.id === comic.id));
+    assert.assertEquals(archived_workset.comic_count, workset_before_archive.comic_count);
+    assert.assert(default_comics.some((comic_info) => comic_info.id === comic.id));
+    assert.assert(!active_comics.some((active_comic) => active_comic.id === comic.id));
 
     // ---------- archive audit rows and object delete tasks ----------
 
     const archive_rows = await withDatabaseClient(async (client) => {
         const [comic_rows, delete_rows] = await Promise.all([
-            client.query<ArchiveAuditRow>(
+            client.queryObject<ArchiveAuditRow>(
                 `SELECT "f_archiver_id", "f_source_comic_id", "f_created_at" FROM "t_comic_archive" WHERE "f_id" = $1`,
                 [archive_comic_val.archived_id],
             ),
-            client.query<ActiveObjectVersion & { f_topic: string }>(
+            client.queryObject<ActiveObjectVersion & { f_topic: string }>(
                 `
                   SELECT "f_topic", "f_obj_id", "f_version"
                   FROM "t_obj_prom_task"
@@ -223,10 +222,10 @@ export async function runIt11Module(ctx: RunCtx): Promise<void> {
         return { comic_rows, delete_rows };
     });
 
-    assert.equal(archive_rows.comic_rows.rows.length, 1);
-    assert.equal(archive_rows.comic_rows.rows[0]!.f_archiver_id, ctx.ids.defaultUserId);
-    assert.equal(archive_rows.comic_rows.rows[0]!.f_source_comic_id, comic.id);
-    assert.ok(Number.isFinite(archive_rows.comic_rows.rows[0]!.f_created_at.getTime()));
+    assert.assertEquals(archive_rows.comic_rows.rows.length, 1);
+    assert.assertEquals(archive_rows.comic_rows.rows[0]!.f_archiver_id, ctx.ids.defaultUserId);
+    assert.assertEquals(archive_rows.comic_rows.rows[0]!.f_source_comic_id, comic.id);
+    assert.assert(Number.isFinite(archive_rows.comic_rows.rows[0]!.f_created_at.getTime()));
 
     const hasDeleteTask = (topic: string, object: ActiveObjectVersion) =>
         archive_rows.delete_rows.rows.some(
@@ -236,12 +235,10 @@ export async function runIt11Module(ctx: RunCtx): Promise<void> {
                 task.f_version === object.f_version,
         );
 
-    assert.ok(hasDeleteTask("comic_cover", active_object_versions.cover));
+    assert.assert(hasDeleteTask("comic_cover", active_object_versions.cover));
 
-    assert.ok(
-        active_object_versions.pages.every((page_image) =>
-            hasDeleteTask("page_image", page_image),
-        ),
+    assert.assert(
+        active_object_versions.pages.every((page_image) => hasDeleteTask("page_image", page_image)),
         "all reserved page images must have delete tasks",
     );
 }

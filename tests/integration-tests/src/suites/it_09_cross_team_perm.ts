@@ -23,23 +23,16 @@
 //
 // Status: IMPLEMENTED.
 
-import assert from "node:assert/strict";
+import * as assert from "@std/assert";
 
-import { testEnv } from "../config/env.js";
-import { expectError, expectNoContent, expectSuccessList } from "../http/assertions.js";
-import type { ErrorBody, SuccessBody } from "../http/apiClient.js";
-import { ApiClient } from "../http/apiClient.js";
-import {
-    createMemberInvitation,
-    createTeam,
-    listMyMembers,
-    listTeamWorksets,
-    listTeams,
-    registerInvitee,
-} from "../http/fixtures.js";
-import { nickname, password, qid, titled } from "../state/prefix.js";
-import { ROLE } from "../state/roles.js";
-import { OUTSIDER_PERSONA, type RunCtx, type UserClient } from "../state/runCtx.js";
+import { testEnv } from "../config/env.ts";
+import { expectError, expectNoContent, expectSuccessList } from "../http/assertions.ts";
+import type { ErrorBody, SuccessBody } from "../http/apiClient.ts";
+import { ApiClient } from "../http/apiClient.ts";
+import { createMemberInvitation, createTeam, listMyMembers, listTeams, registerInvitee } from "../http/fixtures.ts";
+import { nickname, password, qid, titled } from "../state/prefix.ts";
+import { ROLE } from "../state/roles.ts";
+import { OUTSIDER_PERSONA, type RunCtx, type UserClient } from "../state/runCtx.ts";
 
 export const IMPLEMENTED = true as const;
 
@@ -74,9 +67,9 @@ export async function runIt09Module(ctx: RunCtx): Promise<void> {
 
     const outsiderMembers = await listMyMembers(outsiderApi);
 
-    assert.equal(outsiderMembers.length, 1, "outsider must have exactly one membership (second team)");
-    assert.equal(outsiderMembers[0]!.team_id, secondTeam.id, "outsider must be in the second team");
-    assert.equal(outsiderMembers[0]!.roles, ROLE.RAW_PROVIDER);
+    assert.assertEquals(outsiderMembers.length, 1, "outsider must have exactly one membership (second team)");
+    assert.assertEquals(outsiderMembers[0]!.team_id, secondTeam.id, "outsider must be in the second team");
+    assert.assertEquals(outsiderMembers[0]!.roles, ROLE.RAW_PROVIDER);
 
     const outsiderClient: UserClient = {
         persona: outsiderPersona.persona,
@@ -97,8 +90,11 @@ export async function runIt09Module(ctx: RunCtx): Promise<void> {
     // user-scoped team list returns only the second team
     const outsiderTeams = await listTeams(outsiderApi, outsiderUserId);
 
-    assert.ok(!outsiderTeams.find((t) => t.id === defaultTeamId), "outsider must not see default team in user-scoped list");
-    assert.ok(outsiderTeams.find((t) => t.id === secondTeam.id), "outsider must see the second team");
+    assert.assert(
+        !outsiderTeams.find((t) => t.id === defaultTeamId),
+        "outsider must not see default team in user-scoped list",
+    );
+    assert.assert(outsiderTeams.find((t) => t.id === secondTeam.id), "outsider must see the second team");
 
     // outsider list default-team worksets -> 403/4
     expectError(
@@ -153,7 +149,9 @@ export async function runIt09Module(ctx: RunCtx): Promise<void> {
                 );
 
                 expectError(
-                    await outsiderApi.get<ErrorBody>(`/api/v1/chapters/${ctx.main.chapterId}/workflow-records?offset=0&limit=20`),
+                    await outsiderApi.get<ErrorBody>(
+                        `/api/v1/chapters/${ctx.main.chapterId}/workflow-records?offset=0&limit=20`,
+                    ),
                     403,
                     4,
                 );
@@ -194,9 +192,9 @@ export async function runIt09Module(ctx: RunCtx): Promise<void> {
 
     // outsider receives no default-team workflow mails (no earlier module
     // addressed mails to outsider; the mail list must be empty).
-    const outsiderMails = await (await import("../http/fixtures.js")).listSystemMails(outsiderApi);
+    const outsiderMails = await (await import("../http/fixtures.ts")).listSystemMails(outsiderApi);
 
-    assert.equal(outsiderMails.length, 0, "outsider must have no system mails");
+    assert.assertEquals(outsiderMails.length, 0, "outsider must have no system mails");
 
     // ---------- I1.9 default-team members have no second-team powers ----------
 
@@ -248,7 +246,7 @@ export async function runIt09Module(ctx: RunCtx): Promise<void> {
         200,
     );
 
-    assert.deepEqual(
+    assert.assertEquals(
         defaultOnlineUserIds,
         [ctx.ids.defaultUserId, trans01.userId].sort(),
         "default team online users must be sorted and team-scoped",
@@ -261,7 +259,7 @@ export async function runIt09Module(ctx: RunCtx): Promise<void> {
         200,
     );
 
-    assert.deepEqual(
+    assert.assertEquals(
         secondOnlineUserIds,
         [ctx.ids.defaultUserId, outsiderUserId].sort(),
         "second team online users must not include default-team-only users",
@@ -321,6 +319,6 @@ export async function runIt09Module(ctx: RunCtx): Promise<void> {
 
     const allTeams = await listTeams(ctx.sadmin);
 
-    assert.ok(allTeams.find((t) => t.id === defaultTeamId), "sadmin sees default team");
-    assert.ok(allTeams.find((t) => t.id === secondTeam.id), "sadmin sees second team");
+    assert.assert(allTeams.find((t) => t.id === defaultTeamId), "sadmin sees default team");
+    assert.assert(allTeams.find((t) => t.id === secondTeam.id), "sadmin sees second team");
 }

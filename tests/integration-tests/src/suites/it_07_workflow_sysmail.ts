@@ -28,15 +28,15 @@
 //
 // Status: IMPLEMENTED.
 
-import assert from "node:assert/strict";
+import * as assert from "@std/assert";
 
-import { expectError, expectStatus } from "../http/assertions.js";
-import type { ErrorBody } from "../http/apiClient.js";
+import { expectError, expectStatus } from "../http/assertions.ts";
+import type { ErrorBody } from "../http/apiClient.ts";
 import {
     assertMailInvariant,
     assertMailReadFilterInvariant,
     assertStagesPipelineConsistent,
-} from "../http/invariants.js";
+} from "../http/invariants.ts";
 import {
     advanceStage,
     getChapter,
@@ -45,15 +45,14 @@ import {
     markSystemMailsRead,
     revertStage,
     waitForMails,
-} from "../http/fixtures.js";
-import type { ChapterInfoView } from "../http/types.js";
-import { PHASE, STAGE_PIPELINE, stagePhase } from "../state/stages.js";
-import type { RunCtx } from "../state/runCtx.js";
+} from "../http/fixtures.ts";
+import { PHASE, STAGE_PIPELINE, stagePhase } from "../state/stages.ts";
+import type { RunCtx } from "../state/runCtx.ts";
 
 export const IMPLEMENTED = true as const;
 
 export async function runIt07Module(ctx: RunCtx): Promise<void> {
-    assert.ok(ctx.main, "it_02 must have set ctx.main");
+    assert.assert(ctx.main, "it_02 must have set ctx.main");
 
     const mainChapterId = ctx.main.chapterId;
     const sadmin = ctx.sadmin;
@@ -91,10 +90,10 @@ export async function runIt07Module(ctx: RunCtx): Promise<void> {
 
     const initial = await getChapter(sadmin, mainChapterId);
 
-    assert.equal(initial.stages, 0, "main chapter must start at workflow baseline");
+    assert.assertEquals(initial.stages, 0, "main chapter must start at workflow baseline");
 
     for (const stage of STAGE_PIPELINE) {
-        assert.equal(stagePhase(initial.stages, stage), PHASE.PENDING, `stage ${stage} must be pending`);
+        assert.assertEquals(stagePhase(initial.stages, stage), PHASE.PENDING, `stage ${stage} must be pending`);
     }
 
     assertStagesPipelineConsistent(initial);
@@ -171,14 +170,14 @@ export async function runIt07Module(ctx: RunCtx): Promise<void> {
     // stages unchanged after failures
     const afterG2 = await getChapter(sadmin, mainChapterId);
 
-    assert.equal(afterG2.stages, 0, "stages must not change after failed transitions");
+    assert.assertEquals(afterG2.stages, 0, "stages must not change after failed transitions");
 
     // no mail produced by failures (allow background a moment)
     await new Promise((resolve) => setTimeout(resolve, 150));
 
     const trans01MailsAfterG2 = (await listSystemMails(trans01.api)).length;
 
-    assert.equal(
+    assert.assertEquals(
         trans01MailsAfterG2,
         trans01MailsBefore,
         "failed transitions must not produce mail",
@@ -190,17 +189,17 @@ export async function runIt07Module(ctx: RunCtx): Promise<void> {
 
     const afterRaw = await getChapter(sadmin, mainChapterId);
 
-    assert.equal(stagePhase(afterRaw.stages, "raw-provide"), PHASE.COMPLETED, "raw-provide completed");
+    assert.assertEquals(stagePhase(afterRaw.stages, "raw-provide"), PHASE.COMPLETED, "raw-provide completed");
 
     const latestWorkflowRecords = await listChapterWorkflowRecords(sadmin, mainChapterId, 0, 1);
 
-    assert.equal(latestWorkflowRecords.length, 1, "workflow record list returns the requested page");
+    assert.assertEquals(latestWorkflowRecords.length, 1, "workflow record list returns the requested page");
 
     const latestWorkflowRecord = latestWorkflowRecords[0]!;
 
-    assert.equal(latestWorkflowRecord.chapter_id, mainChapterId);
-    assert.equal(latestWorkflowRecord.actor_user_id, raw01.userId);
-    assert.deepEqual(latestWorkflowRecord.event, {
+    assert.assertEquals(latestWorkflowRecord.chapter_id, mainChapterId);
+    assert.assertEquals(latestWorkflowRecord.actor_user_id, raw01.userId);
+    assert.assertEquals(latestWorkflowRecord.event, {
         kind: "stage_transitioned",
         data: {
             stage: "raw_provide",
@@ -209,22 +208,22 @@ export async function runIt07Module(ctx: RunCtx): Promise<void> {
             origin: "manual",
         },
     });
-    assert.equal(
+    assert.assertEquals(
         Object.hasOwn(latestWorkflowRecord, "payload"),
         false,
         "workflow record API must not expose repository storage JSON",
     );
-    assert.equal(
+    assert.assertEquals(
         Object.hasOwn(latestWorkflowRecord, "text"),
         false,
         "workflow record API must not replace structured event data with rendered text",
     );
-    assert.ok(Number.isInteger(latestWorkflowRecord.created_at), "workflow record timestamp is integer ms");
+    assert.assert(Number.isInteger(latestWorkflowRecord.created_at), "workflow record timestamp is integer ms");
 
     const nextWorkflowRecords = await listChapterWorkflowRecords(sadmin, mainChapterId, 1, 1);
 
-    assert.equal(nextWorkflowRecords.length, 1, "workflow record pagination can read the next item");
-    assert.notEqual(nextWorkflowRecords[0]!.id, latestWorkflowRecord.id, "workflow pages must not overlap");
+    assert.assertEquals(nextWorkflowRecords.length, 1, "workflow record pagination can read the next item");
+    assert.assertNotEquals(nextWorkflowRecords[0]!.id, latestWorkflowRecord.id, "workflow pages must not overlap");
 
     // advancing a completed stage -> 422/2
     expectError(
@@ -242,7 +241,7 @@ export async function runIt07Module(ctx: RunCtx): Promise<void> {
 
     const trans01MailsAfterRaw = await listSystemMails(trans01.api);
 
-    assert.ok(
+    assert.assert(
         trans01MailsAfterRaw.length > trans01MailsBefore,
         "trans_01 must receive mail after raw-provide completed",
     );
@@ -250,8 +249,8 @@ export async function runIt07Module(ctx: RunCtx): Promise<void> {
     const newTrans01Mails = trans01MailsAfterRaw.slice(trans01MailsBefore);
 
     for (const mail of newTrans01Mails) {
-        assert.equal(mail.is_read, false, "new mail must be unread");
-        assert.ok(typeof mail.created_at === "number" && Number.isInteger(mail.created_at));
+        assert.assertEquals(mail.is_read, false, "new mail must be unread");
+        assert.assert(typeof mail.created_at === "number" && Number.isInteger(mail.created_at));
     }
 
     // proof_01 / type_01 / publish_01 do NOT receive raw-completion mail
@@ -259,9 +258,9 @@ export async function runIt07Module(ctx: RunCtx): Promise<void> {
     const type01Mails = await listSystemMails(type01.api);
     const publish01Mails = await listSystemMails(publish01.api);
 
-    assert.equal(proof01Mails.length, 0, "proof_01 must have no mail before proofread stage");
-    assert.equal(type01Mails.length, 0, "type_01 must have no mail before typeset stage");
-    assert.equal(publish01Mails.length, 0, "publish_01 must have no mail before publish stage");
+    assert.assertEquals(proof01Mails.length, 0, "proof_01 must have no mail before proofread stage");
+    assert.assertEquals(type01Mails.length, 0, "type_01 must have no mail before typeset stage");
+    assert.assertEquals(publish01Mails.length, 0, "publish_01 must have no mail before publish stage");
 
     await assertMailReadFilterInvariant(trans01.api);
 
@@ -272,7 +271,7 @@ export async function runIt07Module(ctx: RunCtx): Promise<void> {
 
     let afterTrans = await getChapter(sadmin, mainChapterId);
 
-    assert.equal(stagePhase(afterTrans.stages, "translate"), PHASE.ACTIVE);
+    assert.assertEquals(stagePhase(afterTrans.stages, "translate"), PHASE.ACTIVE);
 
     // NOTE: server does NOT enforce cross-stage prerequisites, so proofread
     // advance while translate is only Active would still succeed. The test
@@ -284,14 +283,14 @@ export async function runIt07Module(ctx: RunCtx): Promise<void> {
 
     afterTrans = await getChapter(sadmin, mainChapterId);
 
-    assert.equal(stagePhase(afterTrans.stages, "translate"), PHASE.COMPLETED);
+    assert.assertEquals(stagePhase(afterTrans.stages, "translate"), PHASE.COMPLETED);
 
     // translate completed -> proofreaders (proof_01/02) get mail
     await waitForMails(proof01.api, (n) => n > 0);
 
     const proof01MailsAfterTrans = await listSystemMails(proof01.api);
 
-    assert.ok(proof01MailsAfterTrans.length > 0, "proof_01 must receive mail after translate completed");
+    assert.assert(proof01MailsAfterTrans.length > 0, "proof_01 must receive mail after translate completed");
 
     const proof02CountAfterTrans = (await listSystemMails(proof02.api)).length;
 
@@ -300,21 +299,21 @@ export async function runIt07Module(ctx: RunCtx): Promise<void> {
 
     let afterProof = await getChapter(sadmin, mainChapterId);
 
-    assert.equal(stagePhase(afterProof.stages, "proofread"), PHASE.ACTIVE);
+    assert.assertEquals(stagePhase(afterProof.stages, "proofread"), PHASE.ACTIVE);
 
     // revert proofread Active -> Pending
     await revertStage(proof01.api, mainChapterId, "proofread");
 
     afterProof = await getChapter(sadmin, mainChapterId);
 
-    assert.equal(stagePhase(afterProof.stages, "proofread"), PHASE.PENDING, "proofread reverted to pending");
+    assert.assertEquals(stagePhase(afterProof.stages, "proofread"), PHASE.PENDING, "proofread reverted to pending");
 
     // revert produces NO mail
     await new Promise((resolve) => setTimeout(resolve, 200));
 
     const proof02CountAfterRevert = (await listSystemMails(proof02.api)).length;
 
-    assert.equal(
+    assert.assertEquals(
         proof02CountAfterRevert,
         proof02CountAfterTrans,
         "revert must not produce mail (ChapterWorkflowReverted is a no-op)",
@@ -326,7 +325,7 @@ export async function runIt07Module(ctx: RunCtx): Promise<void> {
 
     afterProof = await getChapter(sadmin, mainChapterId);
 
-    assert.equal(stagePhase(afterProof.stages, "proofread"), PHASE.COMPLETED, "proofread completed for G5");
+    assert.assertEquals(stagePhase(afterProof.stages, "proofread"), PHASE.COMPLETED, "proofread completed for G5");
 
     // ---------- G5. full pipeline to publish + mark-read ----------
 
@@ -335,13 +334,13 @@ export async function runIt07Module(ctx: RunCtx): Promise<void> {
 
     let afterTypeset = await getChapter(sadmin, mainChapterId);
 
-    assert.equal(stagePhase(afterTypeset.stages, "typeset-redraw"), PHASE.ACTIVE);
+    assert.assertEquals(stagePhase(afterTypeset.stages, "typeset-redraw"), PHASE.ACTIVE);
 
     await advanceStage(type01.api, mainChapterId, "typeset-redraw");
 
     afterTypeset = await getChapter(sadmin, mainChapterId);
 
-    assert.equal(stagePhase(afterTypeset.stages, "typeset-redraw"), PHASE.COMPLETED);
+    assert.assertEquals(stagePhase(afterTypeset.stages, "typeset-redraw"), PHASE.COMPLETED);
 
     await waitForMails(review01.api, (n) => n > 0);
 
@@ -350,7 +349,7 @@ export async function runIt07Module(ctx: RunCtx): Promise<void> {
 
     const afterReview = await getChapter(sadmin, mainChapterId);
 
-    assert.equal(stagePhase(afterReview.stages, "review"), PHASE.COMPLETED);
+    assert.assertEquals(stagePhase(afterReview.stages, "review"), PHASE.COMPLETED);
 
     await waitForMails(publish01.api, (n) => n > 0);
 
@@ -370,7 +369,7 @@ export async function runIt07Module(ctx: RunCtx): Promise<void> {
 
     const afterPublish = await getChapter(sadmin, mainChapterId);
 
-    assert.equal(stagePhase(afterPublish.stages, "publish"), PHASE.COMPLETED, "publish completed");
+    assert.assertEquals(stagePhase(afterPublish.stages, "publish"), PHASE.COMPLETED, "publish completed");
 
     assertStagesPipelineConsistent(afterPublish);
 
@@ -405,7 +404,7 @@ export async function runIt07Module(ctx: RunCtx): Promise<void> {
     const proof01Ids = new Set(proof01AllMails.map((m) => m.id));
 
     for (const id of trans01Ids) {
-        assert.ok(!proof01Ids.has(id), "trans_01 and proof_01 mail ids must be disjoint");
+        assert.assert(!proof01Ids.has(id), "trans_01 and proof_01 mail ids must be disjoint");
     }
 
     // mark-read trans_01's unread mails
@@ -417,13 +416,13 @@ export async function runIt07Module(ctx: RunCtx): Promise<void> {
         const afterMark = await listSystemMails(trans01.api, "&is_read=false");
 
         for (const m of afterMark) {
-            assert.ok(!trans01UnreadIds.includes(m.id), "marked mail must not appear in unread list");
+            assert.assert(!trans01UnreadIds.includes(m.id), "marked mail must not appear in unread list");
         }
 
         const readList = await listSystemMails(trans01.api, "&is_read=true");
 
         for (const id of trans01UnreadIds) {
-            assert.ok(readList.find((m) => m.id === id), "marked mail must appear in read list");
+            assert.assert(readList.find((m) => m.id === id), "marked mail must appear in read list");
         }
     }
 
@@ -456,7 +455,7 @@ export async function runIt07Module(ctx: RunCtx): Promise<void> {
     // final: main chapter in publish-completed state
     const finalChapter = await getChapter(sadmin, mainChapterId);
 
-    assert.equal(stagePhase(finalChapter.stages, "publish"), PHASE.COMPLETED);
+    assert.assertEquals(stagePhase(finalChapter.stages, "publish"), PHASE.COMPLETED);
 
     void proof02;
     void STAGE_PIPELINE;

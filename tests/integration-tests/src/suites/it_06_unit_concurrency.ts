@@ -21,13 +21,13 @@
 //
 // Status: IMPLEMENTED.
 
-import assert from "node:assert/strict";
+import * as assert from "@std/assert";
 
 import {
     assertChapterPageCountMetricsConsistent,
     assertPageExportInvariant,
     assertPageUnitInvariant,
-} from "../http/invariants.js";
+} from "../http/invariants.ts";
 import {
     deleteUnit,
     exportPoprako,
@@ -36,15 +36,15 @@ import {
     newBubbleUnit,
     savePageUnits,
     updateUnit,
-} from "../http/fixtures.js";
-import { PHASE, stagePhase } from "../state/stages.js";
-import type { RunCtx } from "../state/runCtx.js";
+} from "../http/fixtures.ts";
+import { PHASE, stagePhase } from "../state/stages.ts";
+import type { RunCtx } from "../state/runCtx.ts";
 
 export const IMPLEMENTED = true as const;
 
 export async function runIt06Module(ctx: RunCtx): Promise<void> {
-    assert.ok(ctx.main, "it_02 must have set ctx.main");
-    assert.ok(ctx.main.pageIds.length >= 2, "it_03 must have reserved at least 2 pages on main");
+    assert.assert(ctx.main, "it_02 must have set ctx.main");
+    assert.assert(ctx.main.pageIds.length >= 2, "it_03 must have reserved at least 2 pages on main");
 
     const mainChapterId = ctx.main.chapterId;
     const p1Id = ctx.main.pageIds[1]!;
@@ -58,7 +58,7 @@ export async function runIt06Module(ctx: RunCtx): Promise<void> {
     // trans_03 was deleted from main assignment in it_04 E3. Re-join so F6 has
     // a third translator. trans_03 member roles = TRANSLATOR, so join is allowed.
     const trans03Assignment = await (
-        await import("../http/fixtures.js")
+        await import("../http/fixtures.ts")
     ).joinChapterAssignment(trans03.api, mainChapterId, 2);
 
     ctx.main.assignmentIds["trans_03"] = trans03Assignment.id;
@@ -77,7 +77,7 @@ export async function runIt06Module(ctx: RunCtx): Promise<void> {
 
     const p1Cleared = await listPageUnits(ctx.sadmin, p1Id);
 
-    assert.equal(p1Cleared.total_unit_count, 0, "p1 must start at 0 units");
+    assert.assertEquals(p1Cleared.total_unit_count, 0, "p1 must start at 0 units");
 
     // raw_01/02 cannot save units (RAW_PROVIDER only). Use trans_01 to create
     // the 12 bubbles (trans_01 is a translator).
@@ -87,12 +87,12 @@ export async function runIt06Module(ctx: RunCtx): Promise<void> {
         Array.from({ length: 12 }, (_, i) => newBubbleUnit(`p1_u${i}`, 0.05 * i, 0.05 * i)),
     );
 
-    assert.equal(create12.total_unit_count, 12);
+    assert.assertEquals(create12.total_unit_count, 12);
 
     const p1List = await listPageUnits(ctx.sadmin, p1Id);
     const p1UnitIds = p1List.unit_infos.map((unit) => unit.id);
 
-    assert.equal(p1UnitIds.length, 12);
+    assert.assertEquals(p1UnitIds.length, 12);
 
     // ---------- F6. 3 translators update 4 units each in parallel ----------
 
@@ -106,7 +106,7 @@ export async function runIt06Module(ctx: RunCtx): Promise<void> {
                 is_bubble: true,
                 is_proofread: false,
                 translated_text: `${prefix}${i}`,
-            }),
+            })
         );
 
     const [f6A, f6B, f6C] = await Promise.all([
@@ -117,9 +117,9 @@ export async function runIt06Module(ctx: RunCtx): Promise<void> {
 
     // All three saves eventually returned a fresh list; the fixture handles
     // retryable 409/code 8 responses at the client boundary.
-    assert.equal(f6A.translated_unit_count <= 12, true, "F6 A count <= 12");
-    assert.equal(f6B.translated_unit_count <= 12, true, "F6 B count <= 12");
-    assert.equal(f6C.translated_unit_count <= 12, true, "F6 C count <= 12");
+    assert.assertEquals(f6A.translated_unit_count <= 12, true, "F6 A count <= 12");
+    assert.assertEquals(f6B.translated_unit_count <= 12, true, "F6 B count <= 12");
+    assert.assertEquals(f6C.translated_unit_count <= 12, true, "F6 C count <= 12");
 
     void f6A;
     void f6B;
@@ -127,35 +127,35 @@ export async function runIt06Module(ctx: RunCtx): Promise<void> {
 
     const p1AfterF6 = await listPageUnits(ctx.sadmin, p1Id);
 
-    assert.equal(p1AfterF6.total_unit_count, 12, "no units lost");
-    assert.equal(p1AfterF6.translated_unit_count, 12, "all 12 translated");
+    assert.assertEquals(p1AfterF6.total_unit_count, 12, "no units lost");
+    assert.assertEquals(p1AfterF6.translated_unit_count, 12, "all 12 translated");
 
     const unitByIdF6 = new Map(p1AfterF6.unit_infos.map((u) => [u.id, u]));
 
     for (let i = 0; i < 4; i++) {
-        assert.equal(unitByIdF6.get(f6Trans01[i]!)?.translated_text, `A${i}`);
-        assert.equal(unitByIdF6.get(f6Trans01[i]!)?.last_translator_id, trans01.userId);
+        assert.assertEquals(unitByIdF6.get(f6Trans01[i]!)?.translated_text, `A${i}`);
+        assert.assertEquals(unitByIdF6.get(f6Trans01[i]!)?.last_translator_id, trans01.userId);
     }
 
     for (let i = 0; i < 4; i++) {
-        assert.equal(unitByIdF6.get(f6Trans02[i]!)?.translated_text, `B${i}`);
-        assert.equal(unitByIdF6.get(f6Trans02[i]!)?.last_translator_id, trans02.userId);
+        assert.assertEquals(unitByIdF6.get(f6Trans02[i]!)?.translated_text, `B${i}`);
+        assert.assertEquals(unitByIdF6.get(f6Trans02[i]!)?.last_translator_id, trans02.userId);
     }
 
     for (let i = 0; i < 4; i++) {
-        assert.equal(unitByIdF6.get(f6Trans03[i]!)?.translated_text, `C${i}`);
-        assert.equal(unitByIdF6.get(f6Trans03[i]!)?.last_translator_id, trans03.userId);
+        assert.assertEquals(unitByIdF6.get(f6Trans03[i]!)?.translated_text, `C${i}`);
+        assert.assertEquals(unitByIdF6.get(f6Trans03[i]!)?.last_translator_id, trans03.userId);
     }
 
     // export unit_index 0..11
     const exportF6 = await exportPoprako(ctx.sadmin, mainChapterId);
     const p1ExportF6 = exportF6.pages.find((p) => p.page_id === p1Id)!;
 
-    assert.equal(p1ExportF6.units.length, 12);
+    assert.assertEquals(p1ExportF6.units.length, 12);
 
     [...p1ExportF6.units]
         .sort((a, b) => a.unit_index - b.unit_index)
-        .forEach((u, i) => assert.equal(u.unit_index, i, `F6 export unit_index ${i}`));
+        .forEach((u, i) => assert.assertEquals(u.unit_index, i, `F6 export unit_index ${i}`));
 
     await assertPageUnitInvariant(ctx.sadmin, p1Id);
     await assertPageExportInvariant(ctx.sadmin, mainChapterId, p1Id);
@@ -185,10 +185,10 @@ export async function runIt06Module(ctx: RunCtx): Promise<void> {
 
     // Both eventually succeed; the later committed Patch wins.
     for (const r of f7Results) {
-        assert.equal(r.status, "fulfilled", "F7 Patch must commit");
+        assert.assertEquals(r.status, "fulfilled", "F7 Patch must commit");
 
         if (r.status === "fulfilled") {
-            assert.equal(r.value.total_unit_count, 12, "F7 success must keep count");
+            assert.assertEquals(r.value.total_unit_count, 12, "F7 success must keep count");
         }
     }
 
@@ -196,13 +196,13 @@ export async function runIt06Module(ctx: RunCtx): Promise<void> {
 
     const f7Final = p1AfterF7.unit_infos.find((u) => u.id === f7Target)!;
 
-    assert.ok(f7Final, "F7 target still exists");
-    assert.ok(
+    assert.assert(f7Final, "F7 target still exists");
+    assert.assert(
         f7Final.translated_text === "A version" || f7Final.translated_text === "B version",
         "final text must be one of the two submitted values",
     );
-    assert.equal(p1AfterF7.total_unit_count, 12, "count unchanged");
-    assert.ok(f7Final.updated_at >= f7OldUpdatedAt, "updated_at must not decrease");
+    assert.assertEquals(p1AfterF7.total_unit_count, 12, "count unchanged");
+    assert.assert(f7Final.updated_at >= f7OldUpdatedAt, "updated_at must not decrease");
 
     // ---------- F8. parallel next_id inserts before the same anchor ----------
 
@@ -237,7 +237,7 @@ export async function runIt06Module(ctx: RunCtx): Promise<void> {
     ]);
 
     for (const r of f8Results) {
-        assert.equal(
+        assert.assertEquals(
             r.status,
             "fulfilled",
             `both F8 inserts must eventually succeed: ${r.status === "rejected" ? String(r.reason) : ""}`,
@@ -252,10 +252,10 @@ export async function runIt06Module(ctx: RunCtx): Promise<void> {
         .filter((unit) => !priorIds.has(unit.id))
         .map((unit) => unit.id);
 
-    assert.equal(p1AfterF8.total_unit_count, 12 + f8SuccessCount, "total increased by success count");
+    assert.assertEquals(p1AfterF8.total_unit_count, 12 + f8SuccessCount, "total increased by success count");
 
     // new unit ids unique
-    assert.equal(new Set(f8NewIds).size, f8NewIds.length, "F8 new ids unique");
+    assert.assertEquals(new Set(f8NewIds).size, f8NewIds.length, "F8 new ids unique");
 
     // export: all new units appear before the anchor; anchor's later relative
     // order preserved; unit_index contiguous.
@@ -265,7 +265,7 @@ export async function runIt06Module(ctx: RunCtx): Promise<void> {
     const f8Order = [...p1ExportF8.units].sort((a, b) => a.unit_index - b.unit_index);
 
     // unit_index contiguous 0..n-1
-    f8Order.forEach((u, i) => assert.equal(u.unit_index, i, `F8 export unit_index ${i}`));
+    f8Order.forEach((u, i) => assert.assertEquals(u.unit_index, i, `F8 export unit_index ${i}`));
 
     const f8AnchorExport = f8Order.find((u) => u.unit_id === f8Anchor)!;
 
@@ -273,14 +273,14 @@ export async function runIt06Module(ctx: RunCtx): Promise<void> {
     for (const newId of f8NewIds) {
         const newExport = f8Order.find((u) => u.unit_id === newId)!;
 
-        assert.ok(
+        assert.assert(
             newExport.unit_index < f8AnchorExport.unit_index,
             "F8 new unit must be before the anchor",
         );
     }
 
     // anchor's index increased by the number of new units before it
-    assert.equal(
+    assert.assertEquals(
         f8AnchorExport.unit_index,
         f8AnchorOldIndex + f8SuccessCount,
         "anchor index shifted by inserted count",
@@ -299,7 +299,7 @@ export async function runIt06Module(ctx: RunCtx): Promise<void> {
     const f9Target = p1UnitIds[1]!;
     const f9Before = p1AfterF8.unit_infos.find((u) => u.id === f9Target);
 
-    assert.ok(f9Before, "F9 target must exist before parallel op");
+    assert.assert(f9Before, "F9 target must exist before parallel op");
 
     const f9CountBefore = p1AfterF8.total_unit_count;
 
@@ -314,9 +314,6 @@ export async function runIt06Module(ctx: RunCtx): Promise<void> {
         savePageUnits(trans01.api, p1Id, [deleteUnit(f9Target)]),
     ]);
 
-    let f9DeleteOk = false;
-    let f9UpdateOk = false;
-
     for (const r of f9Results) {
         if (r.status === "fulfilled") {
             // Distinguish delete vs update by the response: delete returns no
@@ -325,15 +322,12 @@ export async function runIt06Module(ctx: RunCtx): Promise<void> {
             // rely on the final state below.
             void r.value;
         } else {
-            assert.ok(
+            assert.assert(
                 /422|status/i.test(String(r.reason)),
                 `F9 rejection must be 422, got: ${String(r.reason)}`,
             );
         }
     }
-
-    void f9DeleteOk;
-    void f9UpdateOk;
 
     const p1AfterF9 = await listPageUnits(ctx.sadmin, p1Id);
 
@@ -343,15 +337,15 @@ export async function runIt06Module(ctx: RunCtx): Promise<void> {
     // updated text (update won and delete rejected). Count must be consistent.
     if (f9Final) {
         // update won; delete rejected -> count unchanged
-        assert.equal(
+        assert.assertEquals(
             p1AfterF9.total_unit_count,
             f9CountBefore,
             "if target survives, count must not change",
         );
-        assert.equal(f9Final.translated_text, "X-updated");
+        assert.assertEquals(f9Final.translated_text, "X-updated");
     } else {
         // delete won -> count -1
-        assert.equal(
+        assert.assertEquals(
             p1AfterF9.total_unit_count,
             f9CountBefore - 1,
             "if target deleted, count must drop by exactly 1",
@@ -359,7 +353,7 @@ export async function runIt06Module(ctx: RunCtx): Promise<void> {
     }
 
     // forbidden: count -2
-    assert.ok(
+    assert.assert(
         p1AfterF9.total_unit_count >= f9CountBefore - 1,
         "F9 count must not drop by more than 1",
     );
@@ -377,14 +371,14 @@ export async function runIt06Module(ctx: RunCtx): Promise<void> {
     const finalExport = await exportPoprako(ctx.sadmin, mainChapterId);
     const p1FinalExport = finalExport.pages.find((p) => p.page_id === p1Id)!;
 
-    assert.ok(p1FinalExport.units.length >= 12, "p1 has at least 12 units after F6-F9");
+    assert.assert(p1FinalExport.units.length >= 12, "p1 has at least 12 units after F6-F9");
 
     // Translation edits and the earlier export auto-start their corresponding
     // workflow stages. it_07 resets these through the public revert API.
-    assert.equal(stagePhase(mainFinal.stages, "translate"), PHASE.ACTIVE);
-    assert.equal(stagePhase(mainFinal.stages, "typeset-redraw"), PHASE.ACTIVE);
-    assert.equal(stagePhase(mainFinal.stages, "raw-provide"), PHASE.PENDING);
-    assert.equal(stagePhase(mainFinal.stages, "proofread"), PHASE.PENDING);
-    assert.equal(stagePhase(mainFinal.stages, "review"), PHASE.PENDING);
-    assert.equal(stagePhase(mainFinal.stages, "publish"), PHASE.PENDING);
+    assert.assertEquals(stagePhase(mainFinal.stages, "translate"), PHASE.ACTIVE);
+    assert.assertEquals(stagePhase(mainFinal.stages, "typeset-redraw"), PHASE.ACTIVE);
+    assert.assertEquals(stagePhase(mainFinal.stages, "raw-provide"), PHASE.PENDING);
+    assert.assertEquals(stagePhase(mainFinal.stages, "proofread"), PHASE.PENDING);
+    assert.assertEquals(stagePhase(mainFinal.stages, "review"), PHASE.PENDING);
+    assert.assertEquals(stagePhase(mainFinal.stages, "publish"), PHASE.PENDING);
 }

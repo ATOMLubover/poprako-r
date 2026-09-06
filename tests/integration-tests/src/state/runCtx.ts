@@ -1,4 +1,4 @@
-import type { ApiClient } from "../http/apiClient.js";
+import type { ApiClient } from "../http/apiClient.ts";
 
 // RunCtx is the single shared state object carried across all 13 progressive
 // integration modules (`suites/it_00_*` through `suites/it_12_*`).

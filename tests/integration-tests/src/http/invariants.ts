@@ -1,6 +1,6 @@
-import assert from "node:assert/strict";
+import * as assert from "@std/assert";
 
-import { stagePhase } from "../state/stages.js";
+import { stagePhase } from "../state/stages.ts";
 import {
     exportPoprako,
     getChapter,
@@ -15,8 +15,8 @@ import {
     listSystemMails,
     listTeamWorksets,
     listWorksetComics,
-} from "./fixtures.js";
-import type { ApiClient } from "./apiClient.js";
+} from "./fixtures.ts";
+import type { ApiClient } from "./apiClient.ts";
 import type {
     ChapterInfoView,
     ComicInfoView,
@@ -25,8 +25,8 @@ import type {
     SystemMailInfoView,
     UnitInfoView,
     WorksetInfoView,
-} from "./types.js";
-import type { StageName } from "../state/stages.js";
+} from "./types.ts";
+import type { StageName } from "../state/stages.ts";
 
 // Reusable invariant assertions (J1–J6). Each invariant
 // is a pure function over API state: call it after any mutation to verify the
@@ -39,7 +39,7 @@ export async function assertTeamInvariant(
     teamId: string,
     opts: { memberCanAccess: boolean } = { memberCanAccess: true },
 ): Promise<void> {
-    const team = await getTeam(api, teamId);
+    await getTeam(api, teamId);
 
     const worksets = await listTeamWorksets(api, teamId);
 
@@ -48,13 +48,13 @@ export async function assertTeamInvariant(
     const worksetIndexes = new Set<number>();
 
     for (const ws of worksets) {
-        assert.ok(!worksetIds.has(ws.id), `duplicate workset id ${ws.id}`);
+        assert.assert(!worksetIds.has(ws.id), `duplicate workset id ${ws.id}`);
         worksetIds.add(ws.id);
 
-        assert.ok(!worksetIndexes.has(ws.index), `duplicate workset index ${ws.index}`);
+        assert.assert(!worksetIndexes.has(ws.index), `duplicate workset index ${ws.index}`);
         worksetIndexes.add(ws.index);
 
-        assert.equal(ws.team_id, teamId);
+        assert.assertEquals(ws.team_id, teamId);
     }
 
     if (!opts.memberCanAccess) {
@@ -70,7 +70,7 @@ export async function assertWorksetInvariant(api: ApiClient, worksetId: string):
 
     const comics = await listWorksetComics(api, worksetId);
 
-    assert.equal(
+    assert.assertEquals(
         workset.comic_count,
         comics.length,
         `comic_count ${workset.comic_count} != active comics ${comics.length}`,
@@ -80,15 +80,14 @@ export async function assertWorksetInvariant(api: ApiClient, worksetId: string):
     const comicIndexes = new Set<number>();
 
     for (const comic of comics) {
-        assert.ok(!comicIds.has(comic.id), `duplicate comic id ${comic.id}`);
+        assert.assert(!comicIds.has(comic.id), `duplicate comic id ${comic.id}`);
         comicIds.add(comic.id);
 
-        assert.ok(!comicIndexes.has(comic.index), `duplicate comic index ${comic.index}`);
+        assert.assert(!comicIndexes.has(comic.index), `duplicate comic index ${comic.index}`);
         comicIndexes.add(comic.index);
 
-        assert.equal(comic.workset_id, worksetId);
+        assert.assertEquals(comic.workset_id, worksetId);
     }
-
 }
 
 // ---------- J3. Comic invariant ----------
@@ -98,7 +97,7 @@ export async function assertComicInvariant(api: ApiClient, comicId: string): Pro
 
     const chapters = await listComicChapters(api, comicId);
 
-    assert.equal(
+    assert.assertEquals(
         comic.chapter_count,
         chapters.length,
         `chapter_count ${comic.chapter_count} != active chapters ${chapters.length}`,
@@ -110,13 +109,13 @@ export async function assertComicInvariant(api: ApiClient, comicId: string): Pro
     let pinnedId: string | null = null;
 
     for (const chapter of chapters) {
-        assert.ok(!chapterIds.has(chapter.id), `duplicate chapter id ${chapter.id}`);
+        assert.assert(!chapterIds.has(chapter.id), `duplicate chapter id ${chapter.id}`);
         chapterIds.add(chapter.id);
 
-        assert.ok(!chapterIndexes.has(chapter.index), `duplicate chapter index ${chapter.index}`);
+        assert.assert(!chapterIndexes.has(chapter.index), `duplicate chapter index ${chapter.index}`);
         chapterIndexes.add(chapter.index);
 
-        assert.equal(chapter.comic_id, comicId);
+        assert.assertEquals(chapter.comic_id, comicId);
 
         if (chapter.is_pinned) {
             pinnedCount += 1;
@@ -124,15 +123,15 @@ export async function assertComicInvariant(api: ApiClient, comicId: string): Pro
         }
     }
 
-    assert.ok(pinnedCount <= 1, `at most one pinned chapter, found ${pinnedCount}`);
+    assert.assert(pinnedCount <= 1, `at most one pinned chapter, found ${pinnedCount}`);
 
     // pinned endpoint consistency
     const pinnedEndpoint = await getPinnedChapter(api, comicId);
 
     if (pinnedId) {
-        assert.equal(pinnedEndpoint?.id ?? null, pinnedId, "pinned endpoint mismatch");
+        assert.assertEquals(pinnedEndpoint?.id ?? null, pinnedId, "pinned endpoint mismatch");
     } else {
-        assert.ok(pinnedEndpoint === null, "pinned endpoint should be null when none pinned");
+        assert.assert(pinnedEndpoint === null, "pinned endpoint should be null when none pinned");
     }
 }
 
@@ -143,7 +142,7 @@ export async function assertChapterInvariant(api: ApiClient, chapterId: string):
 
     const pages = await listChapterPages(api, chapterId);
 
-    assert.equal(
+    assert.assertEquals(
         chapter.page_count,
         pages.length,
         `page_count ${chapter.page_count} != active pages ${pages.length}`,
@@ -156,30 +155,30 @@ export async function assertChapterInvariant(api: ApiClient, chapterId: string):
     let sumProofread = 0;
 
     for (const page of pages) {
-        assert.ok(!pageIds.has(page.id), `duplicate page id ${page.id}`);
+        assert.assert(!pageIds.has(page.id), `duplicate page id ${page.id}`);
         pageIds.add(page.id);
 
-        assert.ok(!pageIndexes.has(page.index), `duplicate page index ${page.index}`);
+        assert.assert(!pageIndexes.has(page.index), `duplicate page index ${page.index}`);
         pageIndexes.add(page.index);
 
-        assert.equal(page.chapter_id, chapterId);
+        assert.assertEquals(page.chapter_id, chapterId);
 
         sumTotal += page.total_unit_count;
         sumTranslated += page.translated_unit_count;
         sumProofread += page.proofread_unit_count;
     }
 
-    assert.equal(
+    assert.assertEquals(
         chapter.total_unit_count,
         sumTotal,
         `chapter total_unit_count ${chapter.total_unit_count} != sum(pages) ${sumTotal}`,
     );
-    assert.equal(
+    assert.assertEquals(
         chapter.translated_unit_count,
         sumTranslated,
         `chapter translated_unit_count ${chapter.translated_unit_count} != sum(pages) ${sumTranslated}`,
     );
-    assert.equal(
+    assert.assertEquals(
         chapter.proofread_unit_count,
         sumProofread,
         `chapter proofread_unit_count ${chapter.proofread_unit_count} != sum(pages) ${sumProofread}`,
@@ -190,14 +189,14 @@ export async function assertChapterInvariant(api: ApiClient, chapterId: string):
         const sorted = [...pages].sort((a, b) => a.index - b.index);
 
         sorted.forEach((page, i) => {
-            assert.equal(page.index, i, `page index gap at ${i}: got ${page.index}`);
+            assert.assertEquals(page.index, i, `page index gap at ${i}: got ${page.index}`);
         });
     }
 
     // stages mask is a non-negative integer within 12-bit range
-    assert.ok(Number.isInteger(chapter.stages), "stages must be an integer");
-    assert.ok(chapter.stages >= 0, "stages must be non-negative");
-    assert.ok(chapter.stages < 1 << 12, "stages must fit 12 bits");
+    assert.assert(Number.isInteger(chapter.stages), "stages must be an integer");
+    assert.assert(chapter.stages >= 0, "stages must be non-negative");
+    assert.assert(chapter.stages < 1 << 12, "stages must fit 12 bits");
 
     // assignment (chapter_id, user_id) uniqueness
     const assignments = await listChapterAssignments(api, chapterId);
@@ -207,7 +206,7 @@ export async function assertChapterInvariant(api: ApiClient, chapterId: string):
     for (const assignment of assignments) {
         const key = `${assignment.chapter_id}:${assignment.user_id}`;
 
-        assert.ok(!assignmentUserKeys.has(key), `duplicate assignment key ${key}`);
+        assert.assert(!assignmentUserKeys.has(key), `duplicate assignment key ${key}`);
         assignmentUserKeys.add(key);
     }
 }
@@ -223,10 +222,10 @@ export async function assertPageUnitInvariant(api: ApiClient, pageId: string): P
     let proofreadByFlag = 0;
 
     for (const unit of units.unit_infos) {
-        assert.ok(!unitIds.has(unit.id), `duplicate unit id ${unit.id}`);
+        assert.assert(!unitIds.has(unit.id), `duplicate unit id ${unit.id}`);
         unitIds.add(unit.id);
 
-        assert.equal(unit.page_id, pageId);
+        assert.assertEquals(unit.page_id, pageId);
 
         if (
             (unit.translated_text != null && unit.translated_text.trim() !== "") ||
@@ -240,21 +239,21 @@ export async function assertPageUnitInvariant(api: ApiClient, pageId: string): P
         }
     }
 
-    assert.equal(
+    assert.assertEquals(
         units.total_unit_count,
         units.unit_infos.length,
         `total_unit_count ${units.total_unit_count} != unit_infos.length ${units.unit_infos.length}`,
     );
 
     // Translated means either translation or revision has non-empty text.
-    assert.equal(
+    assert.assertEquals(
         units.translated_unit_count,
         translatedByText,
         `translated_unit_count ${units.translated_unit_count} != translated/revision text ${translatedByText}`,
     );
 
     // proofread count must match is_proofread flag count (NOT proofread_text != null)
-    assert.equal(
+    assert.assertEquals(
         units.proofread_unit_count,
         proofreadByFlag,
         `proofread_unit_count ${units.proofread_unit_count} != is_proofread count ${proofreadByFlag}`,
@@ -274,13 +273,13 @@ export async function assertPageExportInvariant(
 
     const exportPage = exportVal.pages.find((page) => page.page_id === pageId);
 
-    assert.ok(exportPage, `export missing page ${pageId}`);
+    assert.assert(exportPage, `export missing page ${pageId}`);
 
     // unit ids must match exactly between list and export
     const listIds = new Set(units.unit_infos.map((unit: UnitInfoView) => unit.id));
     const exportIds = new Set(exportPage.units.map((unit) => unit.unit_id));
 
-    assert.deepEqual(
+    assert.assertEquals(
         [...listIds].sort(),
         [...exportIds].sort(),
         "export unit ids differ from list unit ids",
@@ -290,7 +289,7 @@ export async function assertPageExportInvariant(
     const sortedExportUnits = [...exportPage.units].sort((a, b) => a.unit_index - b.unit_index);
 
     sortedExportUnits.forEach((unit, i) => {
-        assert.equal(unit.unit_index, i, `export unit_index gap at ${i}: got ${unit.unit_index}`);
+        assert.assertEquals(unit.unit_index, i, `export unit_index gap at ${i}: got ${unit.unit_index}`);
     });
 }
 
@@ -300,12 +299,14 @@ export async function assertPageExportInvariant(
 export function assertStagesPipelineConsistent(chapter: ChapterInfoView): void {
     let prevCompleted = true;
 
-    for (const stage of ["raw-provide", "translate", "proofread", "typeset-redraw", "review", "publish"] as StageName[]) {
+    for (
+        const stage of ["raw-provide", "translate", "proofread", "typeset-redraw", "review", "publish"] as StageName[]
+    ) {
         const phase = stagePhase(chapter.stages, stage);
 
         // A stage may only advance if the previous stage is Completed.
         if (!prevCompleted) {
-            assert.equal(
+            assert.assertEquals(
                 phase,
                 0,
                 `stage ${stage} must be pending because a prior stage is not completed`,
@@ -314,7 +315,7 @@ export function assertStagesPipelineConsistent(chapter: ChapterInfoView): void {
 
         // One-shot stages must never report Active (phase 1).
         if (stage === "raw-provide" || stage === "review" || stage === "publish") {
-            assert.notEqual(phase, 1, `one-shot stage ${stage} must not be Active`);
+            assert.assertNotEquals(phase, 1, `one-shot stage ${stage} must not be Active`);
         }
 
         prevCompleted = phase === 2;
@@ -329,11 +330,11 @@ export async function assertMailInvariant(api: ApiClient): Promise<void> {
     const mailIds = new Set<string>();
 
     for (const mail of mails) {
-        assert.ok(!mailIds.has(mail.id), `duplicate mail id ${mail.id}`);
+        assert.assert(!mailIds.has(mail.id), `duplicate mail id ${mail.id}`);
         mailIds.add(mail.id);
 
-        assert.ok(typeof mail.created_at === "number" && Number.isInteger(mail.created_at));
-        assert.ok(typeof mail.is_read === "boolean");
+        assert.assert(typeof mail.created_at === "number" && Number.isInteger(mail.created_at));
+        assert.assert(typeof mail.is_read === "boolean");
     }
 }
 
@@ -344,11 +345,11 @@ export async function assertMailReadFilterInvariant(api: ApiClient): Promise<voi
     const read = await listSystemMails(api, "&is_read=true");
 
     for (const mail of unread) {
-        assert.equal(mail.is_read, false, `is_read=false list returned read mail: ${mail.id}`);
+        assert.assertEquals(mail.is_read, false, `is_read=false list returned read mail: ${mail.id}`);
     }
 
     for (const mail of read) {
-        assert.equal(mail.is_read, true, `is_read=true list returned unread mail: ${mail.id}`);
+        assert.assertEquals(mail.is_read, true, `is_read=true list returned unread mail: ${mail.id}`);
     }
 }
 
@@ -380,14 +381,14 @@ export function assertMemberListWellFormed(members: MemberInfoView[]): void {
     for (const member of members) {
         const key = `${member.team_id}:${member.user_id}`;
 
-        assert.ok(!keys.has(key), `duplicate member key ${key}`);
+        assert.assert(!keys.has(key), `duplicate member key ${key}`);
         keys.add(key);
 
-        assert.ok(member.id, "member.id missing");
-        assert.ok(member.user_id, "member.user_id missing");
-        assert.ok(member.team_id, "member.team_id missing");
-        assert.ok(typeof member.roles === "number");
-        assert.ok(typeof member.last_active_at === "number");
+        assert.assert(member.id, "member.id missing");
+        assert.assert(member.user_id, "member.user_id missing");
+        assert.assert(member.team_id, "member.team_id missing");
+        assert.assert(typeof member.roles === "number");
+        assert.assert(typeof member.last_active_at === "number");
     }
 }
 
@@ -399,15 +400,15 @@ export async function assertChapterPageCountMetricsConsistent(
     const chapter = await getChapter(api, chapterId);
     const pages: PageInfoView[] = await listChapterPages(api, chapterId);
 
-    assert.equal(chapter.page_count, pages.length);
+    assert.assertEquals(chapter.page_count, pages.length);
 
     const sumTotal = pages.reduce((acc, page) => acc + page.total_unit_count, 0);
     const sumTranslated = pages.reduce((acc, page) => acc + page.translated_unit_count, 0);
     const sumProofread = pages.reduce((acc, page) => acc + page.proofread_unit_count, 0);
 
-    assert.equal(chapter.total_unit_count, sumTotal);
-    assert.equal(chapter.translated_unit_count, sumTranslated);
-    assert.equal(chapter.proofread_unit_count, sumProofread);
+    assert.assertEquals(chapter.total_unit_count, sumTotal);
+    assert.assertEquals(chapter.translated_unit_count, sumTranslated);
+    assert.assertEquals(chapter.proofread_unit_count, sumProofread);
 }
 
 // Re-export the value-types this module's helpers expose in their signatures,

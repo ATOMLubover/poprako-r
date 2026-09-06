@@ -1,30 +1,30 @@
-import { Client } from "pg";
+import { Client } from "@db/postgres";
 
-import { testEnv } from "../config/env.js";
+import { testEnv } from "../config/env.ts";
 
 const DEFAULT_TEAM_ID = "team-00000000-0000-0000-0000-000000000001";
 const DEFAULT_USER_ID = "user-00000000-0000-0000-0000-000000000001";
 const DEFAULT_MEMBER_ID = "member-00000000-0000-0000-0000-000000000001";
 const DEFAULT_PASSWORD_HASH =
-  "$argon2id$v=19$m=65536,t=3,p=4$UrCPl9xY0hk3LpfQWl+ZVA$4d+zkTiD9ghoc6XtJJSHpcvfzUpAK1IiZ5MAQezLgrE";
+    "$argon2id$v=19$m=65536,t=3,p=4$UrCPl9xY0hk3LpfQWl+ZVA$4d+zkTiD9ghoc6XtJJSHpcvfzUpAK1IiZ5MAQezLgrE";
 
 export async function withDatabaseClient<T>(
-  run: (client: Client) => Promise<T>,
+    run: (client: Client) => Promise<T>,
 ): Promise<T> {
-  const client = new Client({ connectionString: testEnv.databaseUrl });
+    const client = new Client(testEnv.databaseUrl);
 
-  await client.connect();
+    await client.connect();
 
-  try {
-    return await run(client);
-  } finally {
-    await client.end();
-  }
+    try {
+        return await run(client);
+    } finally {
+        await client.end();
+    }
 }
 
 export async function resetDatabase(): Promise<void> {
-  await withDatabaseClient(async (client) => {
-    const tableResult = await client.query<{ tablename: string }>(`
+    await withDatabaseClient(async (client) => {
+        const tableResult = await client.queryObject<{ tablename: string }>(`
       SELECT tablename
       FROM pg_tables
       WHERE schemaname = 'public'
@@ -32,28 +32,28 @@ export async function resetDatabase(): Promise<void> {
       ORDER BY tablename
     `);
 
-    const tableNames = tableResult.rows.map((row) => `"${row.tablename}"`);
+        const tableNames = tableResult.rows.map((row) => `"${row.tablename}"`);
 
-    await client.query("BEGIN");
+        await client.queryObject("BEGIN");
 
-    try {
-      if (tableNames.length > 0) {
-        await client.query(`TRUNCATE TABLE ${tableNames.join(", ")} RESTART IDENTITY CASCADE`);
-      }
+        try {
+            if (tableNames.length > 0) {
+                await client.queryObject(`TRUNCATE TABLE ${tableNames.join(", ")} RESTART IDENTITY CASCADE`);
+            }
 
-      await client.query(
-        `
+            await client.queryObject(
+                `
           INSERT INTO "t_team" (
             "f_id",
             "f_name",
             "f_description"
           ) VALUES ($1, $2, $3)
         `,
-        [DEFAULT_TEAM_ID, "PRTS", "Default team"],
-      );
+                [DEFAULT_TEAM_ID, "PRTS", "Default team"],
+            );
 
-      await client.query(
-        `
+            await client.queryObject(
+                `
           INSERT INTO "t_user" (
             "f_id",
             "f_nickname",
@@ -62,11 +62,11 @@ export async function resetDatabase(): Promise<void> {
             "f_password_hash"
           ) VALUES ($1, $2, $3, TRUE, $4)
         `,
-        [DEFAULT_USER_ID, "SuperAdmin-OvO", "123456", DEFAULT_PASSWORD_HASH],
-      );
+                [DEFAULT_USER_ID, "SuperAdmin-OvO", "123456", DEFAULT_PASSWORD_HASH],
+            );
 
-      await client.query(
-        `
+            await client.queryObject(
+                `
           INSERT INTO "t_member" (
             "f_id",
             "f_user_id",
@@ -97,21 +97,21 @@ export async function resetDatabase(): Promise<void> {
             NOW()
           )
         `,
-        [DEFAULT_MEMBER_ID, DEFAULT_USER_ID, "SuperAdmin-OvO", DEFAULT_TEAM_ID],
-      );
+                [DEFAULT_MEMBER_ID, DEFAULT_USER_ID, "SuperAdmin-OvO", DEFAULT_TEAM_ID],
+            );
 
-      await client.query("COMMIT");
-    } catch (error) {
-      await client.query("ROLLBACK");
+            await client.queryObject("COMMIT");
+        } catch (error) {
+            await client.queryObject("ROLLBACK");
 
-      throw error;
-    }
-  });
+            throw error;
+        }
+    });
 }
 
 export async function assertDatabaseIsSeedOnly(): Promise<void> {
-  await withDatabaseClient(async (client) => {
-    const tableResult = await client.query<{ tablename: string }>(`
+    await withDatabaseClient(async (client) => {
+        const tableResult = await client.queryObject<{ tablename: string }>(`
       SELECT tablename
       FROM pg_tables
       WHERE schemaname = 'public'
@@ -119,40 +119,40 @@ export async function assertDatabaseIsSeedOnly(): Promise<void> {
       ORDER BY tablename
     `);
 
-    const expectedCounts = new Map([
-      ["t_member", "1"],
-      ["t_team", "1"],
-      ["t_user", "1"],
-    ]);
+        const expectedCounts = new Map([
+            ["t_member", "1"],
+            ["t_team", "1"],
+            ["t_user", "1"],
+        ]);
 
-    const mismatches: string[] = [];
+        const mismatches: string[] = [];
 
-    for (const row of tableResult.rows) {
-      const countResult = await client.query<{ row_count: string }>(
-        `SELECT COUNT(*)::text AS row_count FROM "${row.tablename}"`,
-      );
-      const rowCount = countResult.rows[0]?.row_count;
-      const expectedCount = expectedCounts.get(row.tablename) ?? "0";
+        for (const row of tableResult.rows) {
+            const countResult = await client.queryObject<{ row_count: string }>(
+                `SELECT COUNT(*)::text AS row_count FROM "${row.tablename}"`,
+            );
+            const rowCount = countResult.rows[0]?.row_count;
+            const expectedCount = expectedCounts.get(row.tablename) ?? "0";
 
-      if (rowCount !== expectedCount) {
-        mismatches.push(
-          `${row.tablename}: ${rowCount} rows, expected ${expectedCount}`,
-        );
-      }
-    }
+            if (rowCount !== expectedCount) {
+                mismatches.push(
+                    `${row.tablename}: ${rowCount} rows, expected ${expectedCount}`,
+                );
+            }
+        }
 
-    if (mismatches.length > 0) {
-      throw new Error(
-        `database is not seed-only after suite:\n  - ${mismatches.join("\n  - ")}`,
-      );
-    }
-  });
+        if (mismatches.length > 0) {
+            throw new Error(
+                `database is not seed-only after suite:\n  - ${mismatches.join("\n  - ")}`,
+            );
+        }
+    });
 }
 
 export async function grantChapterWorkerRoles(chapterId: string, userId: string): Promise<void> {
-  await withDatabaseClient(async (client) => {
-    await client.query(
-      `
+    await withDatabaseClient(async (client) => {
+        await client.queryObject(
+            `
         UPDATE "t_assignment"
         SET
           "f_assigned_raw_provider_at" = COALESCE("f_assigned_raw_provider_at", NOW()),
@@ -161,14 +161,14 @@ export async function grantChapterWorkerRoles(chapterId: string, userId: string)
         WHERE "f_chapter_id" = $1
           AND "f_user_id" = $2
       `,
-      [chapterId, userId],
-    );
-  });
+            [chapterId, userId],
+        );
+    });
 }
 
 export interface LeftoverIds {
-  commentId?: string;
-  announcementId?: string;
+    commentId?: string;
+    announcementId?: string;
 }
 
 /// Removes suite-created rows that have no HTTP delete endpoint (comments and
@@ -177,29 +177,29 @@ export interface LeftoverIds {
 /// (workset -> comic -> chapter -> page -> unit -> assignment -> workflow record) are deleted
 /// through `DELETE /api/v1/worksets/{id}` by the caller, which cascades by FK.
 export async function cleanupLeftoverRows(ids: LeftoverIds): Promise<void> {
-  await withDatabaseClient(async (client) => {
-    await client.query("BEGIN");
+    await withDatabaseClient(async (client) => {
+        await client.queryObject("BEGIN");
 
-    try {
-      if (ids.commentId) {
-        await client.query(`DELETE FROM "t_comment" WHERE "f_id" = $1`, [ids.commentId]);
-      }
+        try {
+            if (ids.commentId) {
+                await client.queryObject(`DELETE FROM "t_comment" WHERE "f_id" = $1`, [ids.commentId]);
+            }
 
-      if (ids.announcementId) {
-        await client.query(`DELETE FROM "t_announcement" WHERE "f_id" = $1`, [
-          ids.announcementId,
-        ]);
-      }
+            if (ids.announcementId) {
+                await client.queryObject(`DELETE FROM "t_announcement" WHERE "f_id" = $1`, [
+                    ids.announcementId,
+                ]);
+            }
 
-      await client.query(`TRUNCATE TABLE "t_local_message" RESTART IDENTITY`);
+            await client.queryObject(`TRUNCATE TABLE "t_local_message" RESTART IDENTITY`);
 
-      await client.query("COMMIT");
-    } catch (error) {
-      await client.query("ROLLBACK");
+            await client.queryObject("COMMIT");
+        } catch (error) {
+            await client.queryObject("ROLLBACK");
 
-      throw error;
-    }
-  });
+            throw error;
+        }
+    });
 }
 
 /// Robust self-cleanup that restores the database to the seed-only state
@@ -219,57 +219,57 @@ export async function cleanupLeftoverRows(ids: LeftoverIds): Promise<void> {
 /// dedicated subtree; this function is the safety net that gets the whole DB
 /// back to seed state no matter what.
 export async function cleanupToSeed(): Promise<void> {
-  await withDatabaseClient(async (client) => {
-    await client.query("BEGIN");
+    await withDatabaseClient(async (client) => {
+        await client.queryObject("BEGIN");
 
-    try {
-      // 1. Outbox / mails / social posts (no business-entity dependents).
-      await client.query(`TRUNCATE TABLE "t_local_message" RESTART IDENTITY`);
-      await client.query(`DELETE FROM "t_system_mail"`);
-      await client.query(`DELETE FROM "t_comment"`);
-      await client.query(`DELETE FROM "t_announcement"`);
+        try {
+            // 1. Outbox / mails / social posts (no business-entity dependents).
+            await client.queryObject(`TRUNCATE TABLE "t_local_message" RESTART IDENTITY`);
+            await client.queryObject(`DELETE FROM "t_system_mail"`);
+            await client.queryObject(`DELETE FROM "t_comment"`);
+            await client.queryObject(`DELETE FROM "t_announcement"`);
 
-      // 2. Assignment invitations, assignments.
-      await client.query(`DELETE FROM "t_assignment_invitation"`);
-      await client.query(`DELETE FROM "t_assignment"`);
+            // 2. Assignment invitations, assignments.
+            await client.queryObject(`DELETE FROM "t_assignment_invitation"`);
+            await client.queryObject(`DELETE FROM "t_assignment"`);
 
-      // 3. Units, pages, workflow records, chapters, terminology, comics, worksets (leaf -> root).
-      await client.query(`DELETE FROM "t_unit"`);
-      await client.query(`DELETE FROM "t_page"`);
-      await client.query(`DELETE FROM "t_chapter_workflow_record"`);
-      await client.query(`DELETE FROM "t_chapter"`);
-      await client.query(`DELETE FROM "t_term"`);
-      await client.query(`DELETE FROM "t_termbase"`);
-      await client.query(`DELETE FROM "t_comic"`);
-      await client.query(`DELETE FROM "t_comic_archive"`);
-      await client.query(`DELETE FROM "t_workset"`);
+            // 3. Units, pages, workflow records, chapters, terminology, comics, worksets (leaf -> root).
+            await client.queryObject(`DELETE FROM "t_unit"`);
+            await client.queryObject(`DELETE FROM "t_page"`);
+            await client.queryObject(`DELETE FROM "t_chapter_workflow_record"`);
+            await client.queryObject(`DELETE FROM "t_chapter"`);
+            await client.queryObject(`DELETE FROM "t_term"`);
+            await client.queryObject(`DELETE FROM "t_termbase"`);
+            await client.queryObject(`DELETE FROM "t_comic"`);
+            await client.queryObject(`DELETE FROM "t_comic_archive"`);
+            await client.queryObject(`DELETE FROM "t_workset"`);
 
-      // 4. Object metadata and durable tasks have no FKs to business rows.
-      await client.query(`DELETE FROM "t_obj_prom_task"`);
-      await client.query(`DELETE FROM "t_page_image"`);
-      await client.query(`DELETE FROM "t_user_avatar"`);
-      await client.query(`DELETE FROM "t_team_avatar"`);
-      await client.query(`DELETE FROM "t_comic_cover"`);
+            // 4. Object metadata and durable tasks have no FKs to business rows.
+            await client.queryObject(`DELETE FROM "t_obj_prom_task"`);
+            await client.queryObject(`DELETE FROM "t_page_image"`);
+            await client.queryObject(`DELETE FROM "t_user_avatar"`);
+            await client.queryObject(`DELETE FROM "t_team_avatar"`);
+            await client.queryObject(`DELETE FROM "t_comic_cover"`);
 
-      // 5. Memberships and invitations (depend on team + user).
-      await client.query(`DELETE FROM "t_member" WHERE "f_id" != $1`, [DEFAULT_MEMBER_ID]);
-      await client.query(`DELETE FROM "t_member_invitation"`);
+            // 5. Memberships and invitations (depend on team + user).
+            await client.queryObject(`DELETE FROM "t_member" WHERE "f_id" != $1`, [DEFAULT_MEMBER_ID]);
+            await client.queryObject(`DELETE FROM "t_member_invitation"`);
 
-      // 6. Finally, non-seed users and teams.
-      await client.query(`DELETE FROM "t_user" WHERE "f_id" != $1`, [DEFAULT_USER_ID]);
-      await client.query(`DELETE FROM "t_team" WHERE "f_id" != $1`, [DEFAULT_TEAM_ID]);
+            // 6. Finally, non-seed users and teams.
+            await client.queryObject(`DELETE FROM "t_user" WHERE "f_id" != $1`, [DEFAULT_USER_ID]);
+            await client.queryObject(`DELETE FROM "t_team" WHERE "f_id" != $1`, [DEFAULT_TEAM_ID]);
 
-      await client.query("COMMIT");
-    } catch (error) {
-      await client.query("ROLLBACK");
+            await client.queryObject("COMMIT");
+        } catch (error) {
+            await client.queryObject("ROLLBACK");
 
-      throw error;
-    }
-  });
+            throw error;
+        }
+    });
 }
 
 export const seedIds = {
-  defaultMemberId: DEFAULT_MEMBER_ID,
-  defaultTeamId: DEFAULT_TEAM_ID,
-  defaultUserId: DEFAULT_USER_ID,
+    defaultMemberId: DEFAULT_MEMBER_ID,
+    defaultTeamId: DEFAULT_TEAM_ID,
+    defaultUserId: DEFAULT_USER_ID,
 };

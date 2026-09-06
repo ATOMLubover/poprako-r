@@ -1,27 +1,20 @@
-import test from "node:test";
-
-import { testEnv } from "./config/env.js";
-import {
-    assertDatabaseIsSeedOnly,
-    cleanupToSeed,
-    resetDatabase,
-    seedIds,
-} from "./db/seed.js";
-import { ApiClient } from "./http/apiClient.js";
-import { IMPLEMENTED as IT00_IMPLEMENTED, runIt00Module } from "./suites/it_00_bootstrap_auth_default_seed.js";
-import { IMPLEMENTED as IT01_IMPLEMENTED, runIt01Module } from "./suites/it_01_member_invitation_register_roles.js";
-import { IMPLEMENTED as IT02_IMPLEMENTED, runIt02Module } from "./suites/it_02_workset_comic_chapter_index.js";
-import { IMPLEMENTED as IT03_IMPLEMENTED, runIt03Module } from "./suites/it_03_page_reserve_image.js";
-import { IMPLEMENTED as IT04_IMPLEMENTED, runIt04Module } from "./suites/it_04_assignment_invitation.js";
-import { IMPLEMENTED as IT05_IMPLEMENTED, runIt05Module } from "./suites/it_05_unit_save_order_count.js";
-import { IMPLEMENTED as IT06_IMPLEMENTED, runIt06Module } from "./suites/it_06_unit_concurrency.js";
-import { IMPLEMENTED as IT07_IMPLEMENTED, runIt07Module } from "./suites/it_07_workflow_sysmail.js";
-import { IMPLEMENTED as IT08_IMPLEMENTED, runIt08Module } from "./suites/it_08_info_update_upload_mark.js";
-import { IMPLEMENTED as IT09_IMPLEMENTED, runIt09Module } from "./suites/it_09_cross_team_perm.js";
-import { IMPLEMENTED as IT10_IMPLEMENTED, runIt10Module } from "./suites/it_10_cascade_delete_cleanup.js";
-import { IMPLEMENTED as IT11_IMPLEMENTED, runIt11Module } from "./suites/it_11_comic_archive.js";
-import { IMPLEMENTED as IT12_IMPLEMENTED, runIt12Module } from "./suites/it_12_termbase_term.js";
-import type { RunCtx } from "./state/runCtx.js";
+import { testEnv } from "./config/env.ts";
+import { assertDatabaseIsSeedOnly, cleanupToSeed, resetDatabase, seedIds } from "./db/seed.ts";
+import { ApiClient } from "./http/apiClient.ts";
+import { IMPLEMENTED as IT00_IMPLEMENTED, runIt00Module } from "./suites/it_00_bootstrap_auth_default_seed.ts";
+import { IMPLEMENTED as IT01_IMPLEMENTED, runIt01Module } from "./suites/it_01_member_invitation_register_roles.ts";
+import { IMPLEMENTED as IT02_IMPLEMENTED, runIt02Module } from "./suites/it_02_workset_comic_chapter_index.ts";
+import { IMPLEMENTED as IT03_IMPLEMENTED, runIt03Module } from "./suites/it_03_page_reserve_image.ts";
+import { IMPLEMENTED as IT04_IMPLEMENTED, runIt04Module } from "./suites/it_04_assignment_invitation.ts";
+import { IMPLEMENTED as IT05_IMPLEMENTED, runIt05Module } from "./suites/it_05_unit_save_order_count.ts";
+import { IMPLEMENTED as IT06_IMPLEMENTED, runIt06Module } from "./suites/it_06_unit_concurrency.ts";
+import { IMPLEMENTED as IT07_IMPLEMENTED, runIt07Module } from "./suites/it_07_workflow_sysmail.ts";
+import { IMPLEMENTED as IT08_IMPLEMENTED, runIt08Module } from "./suites/it_08_info_update_upload_mark.ts";
+import { IMPLEMENTED as IT09_IMPLEMENTED, runIt09Module } from "./suites/it_09_cross_team_perm.ts";
+import { IMPLEMENTED as IT10_IMPLEMENTED, runIt10Module } from "./suites/it_10_cascade_delete_cleanup.ts";
+import { IMPLEMENTED as IT11_IMPLEMENTED, runIt11Module } from "./suites/it_11_comic_archive.ts";
+import { IMPLEMENTED as IT12_IMPLEMENTED, runIt12Module } from "./suites/it_12_termbase_term.ts";
+import type { RunCtx } from "./state/runCtx.ts";
 
 // Progressive integration test orchestration.
 //
@@ -80,8 +73,8 @@ const modules: ModuleEntry[] = [
     { name: "it_12 termbase term", implemented: IT12_IMPLEMENTED, run: runIt12Module },
 ];
 
-await test("poprako HTTP API integration (progressive)", async (outerT) => {
-    await outerT.test("reset database to seed", async () => {
+Deno.test("poprako HTTP API integration (progressive)", async (outerT) => {
+    await outerT.step("reset database to seed", async () => {
         await resetDatabase();
     });
 
@@ -109,22 +102,24 @@ await test("poprako HTTP API integration (progressive)", async (outerT) => {
         for (const module of modules) {
             ctx.moduleStatus[module.name] = module.implemented ? "running" : "skipped";
 
-            // `skip` makes the stub appear as a skipped subtest in the output
+            // `ignore` makes the stub appear as a skipped subtest in the output
             // rather than a failure, so the progressive handoff stays green.
-            const options = module.implemented ? {} : { skip: true };
-
-            await outerT.test(module.name, options, async () => {
-                await module.run(ctx);
+            await outerT.step({
+                name: module.name,
+                ignore: !module.implemented,
+                fn: async () => {
+                    await module.run(ctx);
+                },
             });
 
             ctx.moduleStatus[module.name] = module.implemented ? "done" : "skipped";
         }
     } finally {
-        await outerT.test("cleanup to seed state", async () => {
+        await outerT.step("cleanup to seed state", async () => {
             await cleanupToSeed();
         });
 
-        await outerT.test("assert database is seed-only", async () => {
+        await outerT.step("assert database is seed-only", async () => {
             await assertDatabaseIsSeedOnly();
         });
     }

@@ -30,17 +30,13 @@
 //
 // Status: IMPLEMENTED.
 
-import assert from "node:assert/strict";
+import * as assert from "@std/assert";
 
-import { testEnv } from "../config/env.js";
-import { expectError, expectStatus } from "../http/assertions.js";
-import type { ErrorBody } from "../http/apiClient.js";
-import { ApiClient } from "../http/apiClient.js";
-import {
-    assertComicInvariant,
-    assertSubtreeInvariants,
-    assertTeamInvariant,
-} from "../http/invariants.js";
+import { testEnv } from "../config/env.ts";
+import { expectError, expectStatus } from "../http/assertions.ts";
+import type { ErrorBody } from "../http/apiClient.ts";
+import { ApiClient } from "../http/apiClient.ts";
+import { assertSubtreeInvariants, assertTeamInvariant } from "../http/invariants.ts";
 import {
     createChapter,
     createComic,
@@ -60,11 +56,11 @@ import {
     updateComic,
     updateTeam,
     updateWorkset,
-} from "../http/fixtures.js";
-import type { ChapterInfoView, ComicInfoView, TeamInfoView, WorksetInfoView } from "../http/types.js";
-import { stagePhase } from "../state/stages.js";
-import { titled } from "../state/prefix.js";
-import type { ChapterRefs, RunCtx } from "../state/runCtx.js";
+} from "../http/fixtures.ts";
+import type { WorksetInfoView } from "../http/types.ts";
+import { stagePhase } from "../state/stages.ts";
+import { titled } from "../state/prefix.ts";
+import type { RunCtx } from "../state/runCtx.ts";
 
 export const IMPLEMENTED = true as const;
 
@@ -72,7 +68,7 @@ export async function runIt02Module(ctx: RunCtx): Promise<void> {
     const teamId = ctx.ids.defaultTeamId;
     const trans01 = ctx.users.get("trans_01");
 
-    assert.ok(trans01, "it_01 must have registered trans_01");
+    assert.assert(trans01, "it_01 must have registered trans_01");
 
     // ---------- C1. create 4 worksets, verify index monotonic ----------
 
@@ -91,7 +87,7 @@ export async function runIt02Module(ctx: RunCtx): Promise<void> {
         createdWorksets.push(wsInfo);
 
         // index strictly increasing and matches creation order (0-based)
-        assert.equal(wsInfo.index, i);
+        assert.assertEquals(wsInfo.index, i);
     }
 
     // list contains the 4 new worksets; indexes unique and increasing
@@ -100,12 +96,12 @@ export async function runIt02Module(ctx: RunCtx): Promise<void> {
     for (const ws of createdWorksets) {
         const found = listed.find((item) => item.id === ws.id);
 
-        assert.ok(found, `list must include workset ${ws.id}`);
+        assert.assert(found, `list must include workset ${ws.id}`);
     }
 
     const createdIndexes = createdWorksets.map((ws) => ws.index);
 
-    assert.equal(new Set(createdIndexes).size, createdIndexes.length, "workset indexes unique");
+    assert.assertEquals(new Set(createdIndexes).size, createdIndexes.length, "workset indexes unique");
 
     await assertTeamInvariant(ctx.sadmin, teamId);
 
@@ -143,7 +139,7 @@ export async function runIt02Module(ctx: RunCtx): Promise<void> {
     // list no longer contains old id
     const listedAfterDelete = await listTeamWorksets(ctx.sadmin, teamId);
 
-    assert.ok(!listedAfterDelete.find((ws) => ws.id === shortWsId), "deleted workset must not list");
+    assert.assert(!listedAfterDelete.find((ws) => ws.id === shortWsId), "deleted workset must not list");
 
     // recreate 短篇池-重建; new index must not backfill (should be > any existing index)
     const listedAfterDeleteWss = await listTeamWorksets(ctx.sadmin, teamId);
@@ -155,12 +151,12 @@ export async function runIt02Module(ctx: RunCtx): Promise<void> {
 
     const rebuiltInfo = await getWorkset(ctx.sadmin, rebuilt.id);
 
-    assert.ok(rebuiltInfo.index > maxExistingWsIndex, "rebuilt index must not backfill");
+    assert.assert(rebuiltInfo.index > maxExistingWsIndex, "rebuilt index must not backfill");
 
     // active count back to 4
     const listedAfterRebuild = await listTeamWorksets(ctx.sadmin, teamId);
 
-    assert.equal(listedAfterRebuild.length, 4);
+    assert.assertEquals(listedAfterRebuild.length, 4);
 
     // ---------- C3. create 3 comics under 连载池, verify first chapter ----------
 
@@ -192,25 +188,25 @@ export async function runIt02Module(ctx: RunCtx): Promise<void> {
 
         const comicInfo = await getComic(ctx.sadmin, comic.id);
 
-        assert.equal(comicInfo.workset_id, serialWsId);
-        assert.equal(comicInfo.index, i, `comic ${spec.label} index monotonic`);
-        assert.equal(comicInfo.chapter_count, 1);
-        assert.equal(comicInfo.cover_url ?? null, null);
+        assert.assertEquals(comicInfo.workset_id, serialWsId);
+        assert.assertEquals(comicInfo.index, i, `comic ${spec.label} index monotonic`);
+        assert.assertEquals(comicInfo.chapter_count, 1);
+        assert.assertEquals(comicInfo.cover_url ?? null, null);
 
         const chapterInfo = await getChapter(ctx.sadmin, comic.chapter_id);
 
-        assert.equal(chapterInfo.comic_id, comic.id);
-        assert.equal(chapterInfo.index, 0);
-        assert.equal(chapterInfo.page_count, 0);
-        assert.equal(chapterInfo.total_unit_count, 0);
-        assert.equal(chapterInfo.translated_unit_count, 0);
-        assert.equal(chapterInfo.proofread_unit_count, 0);
-        assert.equal(chapterInfo.creator_id, ctx.ids.defaultUserId);
+        assert.assertEquals(chapterInfo.comic_id, comic.id);
+        assert.assertEquals(chapterInfo.index, 0);
+        assert.assertEquals(chapterInfo.page_count, 0);
+        assert.assertEquals(chapterInfo.total_unit_count, 0);
+        assert.assertEquals(chapterInfo.translated_unit_count, 0);
+        assert.assertEquals(chapterInfo.proofread_unit_count, 0);
+        assert.assertEquals(chapterInfo.creator_id, ctx.ids.defaultUserId);
 
         if (spec.firstSubtitle !== null) {
-            assert.equal(chapterInfo.subtitle, spec.firstSubtitle);
+            assert.assertEquals(chapterInfo.subtitle, spec.firstSubtitle);
         } else {
-            assert.ok(chapterInfo.subtitle.length > 0, "default subtitle must be non-empty");
+            assert.assert(chapterInfo.subtitle.length > 0, "default subtitle must be non-empty");
         }
     }
 
@@ -220,8 +216,8 @@ export async function runIt02Module(ctx: RunCtx): Promise<void> {
 
         const chapters = await listComicChapters(ctx.sadmin, comicId);
 
-        assert.equal(chapters.length, 1);
-        assert.equal(chapters[0]!.id, ctx.ids.firstChapterIds[spec.label]);
+        assert.assertEquals(chapters.length, 1);
+        assert.assertEquals(chapters[0]!.id, ctx.ids.firstChapterIds[spec.label]);
     }
 
     // workset comics list with with=pinned_chapter & incl=workset.team
@@ -233,25 +229,25 @@ export async function runIt02Module(ctx: RunCtx): Promise<void> {
 
     const { comics: serialComics, pinned_chapters: pinnedChapters } = serialComicPayload;
 
-    assert.equal(serialComics.length, 3);
+    assert.assertEquals(serialComics.length, 3);
 
-    assert.equal(pinnedChapters.length, serialComics.length);
+    assert.assertEquals(pinnedChapters.length, serialComics.length);
 
     for (const [index, comic] of serialComics.entries()) {
-        assert.ok(comic.workset, "incl=workset.team must embed workset");
-        assert.equal(comic.workset?.id, serialWsId, "workset.id must be the parent workset");
-        assert.equal(comic.workset?.team_id, teamId, "workset.team_id must be the default team");
-        assert.ok(comic.team, "workset.team incl must populate comic.team");
-        assert.equal(comic.team?.id, teamId, "comic.team.id must be the default team");
+        assert.assert(comic.workset, "incl=workset.team must embed workset");
+        assert.assertEquals(comic.workset?.id, serialWsId, "workset.id must be the parent workset");
+        assert.assertEquals(comic.workset?.team_id, teamId, "workset.team_id must be the default team");
+        assert.assert(comic.team, "workset.team incl must populate comic.team");
+        assert.assertEquals(comic.team?.id, teamId, "comic.team.id must be the default team");
         const pinnedChapter = pinnedChapters[index];
 
-        assert.ok(pinnedChapter, "with=pinned_chapter must return a pinned chapter");
+        assert.assert(pinnedChapter, "with=pinned_chapter must return a pinned chapter");
 
         const firstChId = ctx.ids.firstChapterIds[
             comicSpecs.find((spec) => ctx.ids.comicIds[spec.label] === comic.id)!.label
         ];
 
-        assert.equal(
+        assert.assertEquals(
             pinnedChapter.id,
             firstChId,
             "auto-pinned chapter must be the comic's first chapter",
@@ -299,12 +295,12 @@ export async function runIt02Module(ctx: RunCtx): Promise<void> {
     // list excludes deleted comic
     const serialComicsAfterDelete = await listWorksetComics(ctx.sadmin, serialWsId);
 
-    assert.ok(!serialComicsAfterDelete.find((comic) => comic.id === yuyeId));
+    assert.assert(!serialComicsAfterDelete.find((comic) => comic.id === yuyeId));
 
     // workset comic_count == 2 (active)
     const serialWsAfterDelete = await getWorkset(ctx.sadmin, serialWsId);
 
-    assert.equal(serialWsAfterDelete.comic_count, 2);
+    assert.assertEquals(serialWsAfterDelete.comic_count, 2);
 
     // deleted comic's first chapter -> 422/2
     expectError(await ctx.sadmin.get<ErrorBody>(`/api/v1/chapters/${yuyeFirstChId}`), 422, 2);
@@ -323,12 +319,12 @@ export async function runIt02Module(ctx: RunCtx): Promise<void> {
 
     const yuyeRebornInfo = await getComic(ctx.sadmin, yuyeReborn.id);
 
-    assert.ok(yuyeRebornInfo.index > maxExistingComicIndex, "rebuilt comic index no backfill");
+    assert.assert(yuyeRebornInfo.index > maxExistingComicIndex, "rebuilt comic index no backfill");
 
     // workset comic_count back to 3
     const serialWsAfterRebuild = await getWorkset(ctx.sadmin, serialWsId);
 
-    assert.equal(serialWsAfterRebuild.comic_count, 3);
+    assert.assertEquals(serialWsAfterRebuild.comic_count, 3);
 
     // fuzzy_title=雨夜 finds 重制版, not the deleted original
     const fuzzyYuye = await listWorksetComics(
@@ -337,8 +333,8 @@ export async function runIt02Module(ctx: RunCtx): Promise<void> {
         `&fuzzy_title=${encodeURIComponent(titled("雨夜"))}`,
     );
 
-    assert.ok(fuzzyYuye.find((comic) => comic.id === yuyeReborn.id), "fuzzy must find 重制版");
-    assert.ok(!fuzzyYuye.find((comic) => comic.id === yuyeId), "fuzzy must not find deleted original");
+    assert.assert(fuzzyYuye.find((comic) => comic.id === yuyeReborn.id), "fuzzy must find 重制版");
+    assert.assert(!fuzzyYuye.find((comic) => comic.id === yuyeId), "fuzzy must not find deleted original");
 
     // ---------- C5. multi-chapter on 星尘旅人, verify chapter index ----------
 
@@ -352,9 +348,6 @@ export async function runIt02Module(ctx: RunCtx): Promise<void> {
 
     const chapterIdsByLabel: Record<string, string> = { ch1: xingchenFirstCh };
 
-    const existingChapters = await listComicChapters(ctx.sadmin, xingchenId);
-    const maxExistingChIndex = Math.max(...existingChapters.map((ch) => ch.index), 0);
-
     for (let i = 0; i < chapterSpecs.length; i++) {
         const spec = chapterSpecs[i]!;
         const ch = await createChapter(ctx.sadmin, xingchenId, titled(spec.subtitle));
@@ -363,7 +356,7 @@ export async function runIt02Module(ctx: RunCtx): Promise<void> {
 
         const xingchenAfter = await getComic(ctx.sadmin, xingchenId);
 
-        assert.equal(xingchenAfter.chapter_count, 2 + i, "chapter_count == active count");
+        assert.assertEquals(xingchenAfter.chapter_count, 2 + i, "chapter_count == active count");
     }
 
     // delete 第 3 话 (ch3)
@@ -378,7 +371,7 @@ export async function runIt02Module(ctx: RunCtx): Promise<void> {
     // chapter_count -1
     const xingchenAfterChDelete = await getComic(ctx.sadmin, xingchenId);
 
-    assert.equal(xingchenAfterChDelete.chapter_count, 3);
+    assert.assertEquals(xingchenAfterChDelete.chapter_count, 3);
 
     // create 第 5 话 断层回声; new index must not backfill (> any existing)
     const ch5 = await createChapter(ctx.sadmin, xingchenId, titled("第 5 话 断层回声"));
@@ -387,14 +380,14 @@ export async function runIt02Module(ctx: RunCtx): Promise<void> {
 
     const ch5Info = await getChapter(ctx.sadmin, ch5.id);
 
-    assert.ok(ch5Info.index > maxChIndexBeforeDelete, "new chapter index no backfill");
+    assert.assert(ch5Info.index > maxChIndexBeforeDelete, "new chapter index no backfill");
 
     // active indexes are [0,1,3,4] (ch1=0, ch2=1, ch4=3, ch5=4) — no backfill
     const activeChapters = await listComicChapters(ctx.sadmin, xingchenId);
 
     const activeIndexes = activeChapters.map((ch) => ch.index).sort((a, b) => a - b);
 
-    assert.deepEqual(activeIndexes, [0, 1, 3, 4], "chapter indexes no backfill");
+    assert.assertEquals(activeIndexes, [0, 1, 3, 4], "chapter indexes no backfill");
 
     // incl=comic.workset.team: nested id chain correct
     const withIncl = await listComicChapters(
@@ -404,14 +397,14 @@ export async function runIt02Module(ctx: RunCtx): Promise<void> {
     );
 
     for (const ch of withIncl) {
-        assert.ok(ch.comic, "comic embedded");
-        assert.equal(ch.comic?.id, xingchenId);
-        assert.ok(ch.comic?.workset, "workset embedded");
-        assert.equal(ch.comic?.workset?.id, serialWsId);
-        assert.ok(ch.comic?.team, "workset.team incl populates comic.team");
-        assert.equal(ch.comic?.team?.id, teamId);
+        assert.assert(ch.comic, "comic embedded");
+        assert.assertEquals(ch.comic?.id, xingchenId);
+        assert.assert(ch.comic?.workset, "workset embedded");
+        assert.assertEquals(ch.comic?.workset?.id, serialWsId);
+        assert.assert(ch.comic?.team, "workset.team incl populates comic.team");
+        assert.assertEquals(ch.comic?.team?.id, teamId);
         // creator not requested — must be omitted
-        assert.equal(ch.creator, undefined, "creator not included");
+        assert.assertEquals(ch.creator, undefined, "creator not included");
     }
 
     // C5.8: non-admin create chapter -> 403/4
@@ -453,18 +446,18 @@ export async function runIt02Module(ctx: RunCtx): Promise<void> {
 
     let pinned = await getPinnedChapter(ctx.sadmin, xingchenId);
 
-    assert.equal(pinned?.id ?? null, ch2Id, "pinned endpoint returns ch2");
+    assert.assertEquals(pinned?.id ?? null, ch2Id, "pinned endpoint returns ch2");
 
     // pin ch4 -> pin moves to ch4, ch2 unpins
     await markChapterPinned(ctx.sadmin, ch4Id);
 
     pinned = await getPinnedChapter(ctx.sadmin, xingchenId);
 
-    assert.equal(pinned?.id ?? null, ch4Id, "pin moves to ch4");
+    assert.assertEquals(pinned?.id ?? null, ch4Id, "pin moves to ch4");
 
     const ch2After = await getChapter(ctx.sadmin, ch2Id);
 
-    assert.equal(ch2After.is_pinned, false, "ch2 unpinned after ch4 pinned");
+    assert.assertEquals(ch2After.is_pinned, false, "ch2 unpinned after ch4 pinned");
 
     // C6.5: path/body id mismatch -> 422 code 7
     expectError(
@@ -493,8 +486,8 @@ export async function runIt02Module(ctx: RunCtx): Promise<void> {
 
     const ch2AfterSub = await getChapter(ctx.sadmin, ch2Id);
 
-    assert.equal(ch2AfterSub.subtitle, titled("第 2 话 改名"));
-    assert.equal(ch2AfterSub.is_pinned, ch2Before.is_pinned, "subtitle patch must not change pin");
+    assert.assertEquals(ch2AfterSub.subtitle, titled("第 2 话 改名"));
+    assert.assertEquals(ch2AfterSub.is_pinned, ch2Before.is_pinned, "subtitle patch must not change pin");
 
     // restore subtitle for downstream modules
     await patchChapter(ctx.sadmin, ch2Id, { subtitle: ch2OriginalSubtitle });
@@ -503,8 +496,8 @@ export async function runIt02Module(ctx: RunCtx): Promise<void> {
 
     const ch2AfterPin = await getChapter(ctx.sadmin, ch2Id);
 
-    assert.equal(ch2AfterPin.is_pinned, true);
-    assert.equal(ch2AfterPin.subtitle, ch2OriginalSubtitle, "pin patch must not change subtitle");
+    assert.assertEquals(ch2AfterPin.is_pinned, true);
+    assert.assertEquals(ch2AfterPin.subtitle, ch2OriginalSubtitle, "pin patch must not change subtitle");
 
     // ---------- C7. info update full coverage ----------
 
@@ -518,9 +511,9 @@ export async function runIt02Module(ctx: RunCtx): Promise<void> {
 
     const teamUpdated = await getTeam(ctx.sadmin, teamId);
 
-    assert.equal(teamUpdated.name, titled("team-renamed"));
-    assert.equal(teamUpdated.description, "updated desc");
-    assert.ok(teamUpdated.updated_at >= teamOriginalUpdated, "updated_at must not decrease");
+    assert.assertEquals(teamUpdated.name, titled("team-renamed"));
+    assert.assertEquals(teamUpdated.description, "updated desc");
+    assert.assert(teamUpdated.updated_at >= teamOriginalUpdated, "updated_at must not decrease");
 
     // restore team profile (downstream modules / cleanup assume seed name)
     await updateTeam(ctx.sadmin, teamId, teamOriginalName, teamOriginalDesc);
@@ -545,10 +538,10 @@ export async function runIt02Module(ctx: RunCtx): Promise<void> {
 
     const wsUpdated = await getWorkset(ctx.sadmin, serialWsId);
 
-    assert.equal(wsUpdated.name, titled("ws-renamed"));
-    assert.equal(wsUpdated.description, "ws updated");
-    assert.equal(wsUpdated.index, wsForUpdate.index, "index unchanged");
-    assert.equal(wsUpdated.comic_count, wsForUpdate.comic_count, "comic_count unchanged");
+    assert.assertEquals(wsUpdated.name, titled("ws-renamed"));
+    assert.assertEquals(wsUpdated.description, "ws updated");
+    assert.assertEquals(wsUpdated.index, wsForUpdate.index, "index unchanged");
+    assert.assertEquals(wsUpdated.comic_count, wsForUpdate.comic_count, "comic_count unchanged");
 
     // restore workset name
     await updateWorkset(ctx.sadmin, serialWsId, wsOriginalName, wsOriginalDesc || undefined);
@@ -562,11 +555,11 @@ export async function runIt02Module(ctx: RunCtx): Promise<void> {
 
     const comicUpdated = await getComic(ctx.sadmin, xingchenId);
 
-    assert.equal(comicUpdated.title, titled("comic-renamed"));
-    assert.equal(comicUpdated.author, "new author");
-    assert.equal(comicUpdated.description, "new desc");
-    assert.equal(comicUpdated.index, comicForUpdate.index, "index unchanged");
-    assert.equal(comicUpdated.chapter_count, comicForUpdate.chapter_count, "chapter_count unchanged");
+    assert.assertEquals(comicUpdated.title, titled("comic-renamed"));
+    assert.assertEquals(comicUpdated.author, "new author");
+    assert.assertEquals(comicUpdated.description, "new desc");
+    assert.assertEquals(comicUpdated.index, comicForUpdate.index, "index unchanged");
+    assert.assertEquals(comicUpdated.chapter_count, comicForUpdate.chapter_count, "chapter_count unchanged");
 
     // restore comic profile
     await updateComic(ctx.sadmin, xingchenId, comicOriginalTitle, comicOriginalAuthor);
@@ -579,13 +572,13 @@ export async function runIt02Module(ctx: RunCtx): Promise<void> {
 
     const chUpdated = await getChapter(ctx.sadmin, ch2Id);
 
-    assert.equal(chUpdated.subtitle, titled("ch-renamed"));
-    assert.equal(chUpdated.index, chForUpdate.index);
-    assert.equal(chUpdated.page_count, chForUpdate.page_count);
-    assert.equal(chUpdated.total_unit_count, chForUpdate.total_unit_count);
-    assert.equal(chUpdated.translated_unit_count, chForUpdate.translated_unit_count);
-    assert.equal(chUpdated.proofread_unit_count, chForUpdate.proofread_unit_count);
-    assert.equal(chUpdated.stages, chForUpdate.stages, "stages unchanged by subtitle patch");
+    assert.assertEquals(chUpdated.subtitle, titled("ch-renamed"));
+    assert.assertEquals(chUpdated.index, chForUpdate.index);
+    assert.assertEquals(chUpdated.page_count, chForUpdate.page_count);
+    assert.assertEquals(chUpdated.total_unit_count, chForUpdate.total_unit_count);
+    assert.assertEquals(chUpdated.translated_unit_count, chForUpdate.translated_unit_count);
+    assert.assertEquals(chUpdated.proofread_unit_count, chForUpdate.proofread_unit_count);
+    assert.assertEquals(chUpdated.stages, chForUpdate.stages, "stages unchanged by subtitle patch");
 
     // restore chapter subtitle
     await patchChapter(ctx.sadmin, ch2Id, { subtitle: chOriginalSubtitle });
@@ -712,7 +705,7 @@ export async function runIt02Module(ctx: RunCtx): Promise<void> {
     // sanity: main chapter is at workflow baseline
     const mainChapter = await getChapter(ctx.sadmin, ctx.main.chapterId);
 
-    assert.equal(mainChapter.stages, 0, "main chapter must start at workflow baseline");
+    assert.assertEquals(mainChapter.stages, 0, "main chapter must start at workflow baseline");
     void stagePhase; // referenced for downstream modules' convenience
 }
 
