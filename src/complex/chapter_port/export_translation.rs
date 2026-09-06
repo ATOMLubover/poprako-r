@@ -13,6 +13,7 @@ impl ChapterTranslationExportComplex {
         pages: &[PageInfo],
         units_by_page_id: &HashMap<String, Vec<UnitInfo>>,
         ext_by_page_id: &HashMap<String, String>,
+        raw_ident_by_page_id: &HashMap<String, String>,
     ) -> String {
         //
         let mut output = String::new();
@@ -31,12 +32,18 @@ impl ChapterTranslationExportComplex {
 
         for page_info in pages {
             //
-            let image_name = label_plus_image_name(
-                page_info,
-                ext_by_page_id
-                    .get(&page_info.id)
-                    .map_or("jpg", String::as_str),
-            );
+            let image_name = raw_ident_by_page_id
+                .get(&page_info.id)
+                .cloned()
+                .unwrap_or_else(|| {
+                    //
+                    label_plus_image_name(
+                        page_info,
+                        ext_by_page_id
+                            .get(&page_info.id)
+                            .map_or("jpg", String::as_str),
+                    )
+                });
 
             // FIXME: why ignore? and similar ones.
             write!(output, "\n\n>>>>>>>>[{}]<<<<<<<<\n", image_name).unwrap_or_else(|error| {

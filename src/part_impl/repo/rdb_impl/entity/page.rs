@@ -9,13 +9,15 @@
 use diesel::{AsChangeset, Insertable, Queryable, Selectable};
 use time::OffsetDateTime;
 
-use crate::model::read::proj::page::{PageInfo, PageUnitScope};
+use crate::model::read::proj::page::{
+    PageInfo, PageRawIdentInfo, PageUnitScope,
+};
 use crate::model::read::proj::unit::UnitCountMetrics;
 use crate::model::write::page::{PageEntry, PageManifestEntry};
 use crate::part_impl::repo::rdb_impl::numeric::{
     i32_from_usize, usize_from_i32,
 };
-use crate::part_impl::repo::rdb_impl::schema::t_page;
+use crate::part_impl::repo::rdb_impl::schema::{t_page, t_page_raw_ident};
 use crate::result::BaseError;
 
 /// Raw database row for the `t_page` table. Returned by Diesel queries.
@@ -205,4 +207,44 @@ impl PageAspectRow {
 
         self
     }
+}
+
+/// Persisted original filename and its lifecycle timestamps.
+#[derive(Queryable, Selectable)]
+#[diesel(table_name = t_page_raw_ident)]
+pub struct PageRawIdentInfoRow {
+    //
+    /// Owning page identifier.
+    pub f_page_id: String,
+    /// Complete source filename.
+    pub f_raw_ident: String,
+
+    /// Initial assignment time.
+    pub f_created_at: OffsetDateTime,
+    /// Latest assignment time.
+    pub f_updated_at: OffsetDateTime,
+}
+
+impl From<PageRawIdentInfoRow> for PageRawIdentInfo {
+    // Converts the stored filename association into a domain projection.
+    fn from(row: PageRawIdentInfoRow) -> Self {
+        //
+        Self {
+            page_id: row.f_page_id,
+            raw_ident: row.f_raw_ident,
+            created_at: row.f_created_at,
+            updated_at: row.f_updated_at,
+        }
+    }
+}
+
+/// Filename assignment used by the batch upsert.
+#[derive(Insertable)]
+#[diesel(table_name = t_page_raw_ident)]
+pub struct PageRawIdentEntryRow<'a> {
+    //
+    /// Owning page identifier.
+    pub f_page_id: &'a str,
+    /// Complete source filename.
+    pub f_raw_ident: &'a str,
 }

@@ -90,6 +90,7 @@ pub fn make_label_plus(label_plus_export_input: &LabelPlusExportInput) -> bool {
         &label_plus_export_input.pages,
         &label_plus_export_input.units_by_page_id,
         &std::collections::HashMap::new(),
+        &std::collections::HashMap::new(),
     )
     .is_empty()
 }

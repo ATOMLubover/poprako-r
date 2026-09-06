@@ -107,6 +107,7 @@ fn page_instr(
     new_byte_len: Option<u64>,
 ) -> PageImageInstr {
     PageImageInstr {
+        raw_ident: None,
         page_id: page_id.map(Into::into),
         image_hash: ImageHash::new([hash; 32]),
         new_byte_len,

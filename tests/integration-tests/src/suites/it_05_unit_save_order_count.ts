@@ -379,6 +379,29 @@ export async function runIt05Module(ctx: RunCtx): Promise<void> {
 
     assert.assert(mainLabelPlus.length > 0, "label-plus export must be non-empty text");
 
+    // Original names remain opt-in and do not change the native document.
+    const rawExports = await exportTranslations(ctx.sadmin, mainChapterId, ["poprako", "label_plus"], true);
+
+    assert.assertEquals(rawExports.poprako, mainExports.poprako);
+    assert.assert(rawExports.label_plus?.includes(">>>>>>>>[原稿 01.PNG]<<<<<<<<"));
+    assert.assert(rawExports.label_plus?.includes(">>>>>>>>[replacement.JPG]<<<<<<<<"));
+    assert.assert(rawExports.label_plus?.includes(">>>>>>>>[001.jpg]<<<<<<<<"));
+    assert.assert(!mainLabelPlus.includes("原稿 01.PNG"));
+
+    const rawDownload = await ctx.sadmin.get(
+        `/api/v1/chapters/${mainChapterId}/translations/export/download?format=poprako,label_plus&with_raw_ident=true`,
+    );
+
+    expectStatus(rawDownload, 200);
+    assert.assertEquals(JSON.parse(rawDownload.rawText), rawExports);
+
+    const missingSwitch = await ctx.sadmin.get(
+        `/api/v1/chapters/${mainChapterId}/translations/export?format=poprako,label_plus`,
+    );
+
+    expectStatus(missingSwitch, 200);
+    assert.assertEquals(JSON.parse(missingSwitch.rawText), mainExports);
+
     const gangtieId = ctx.ids.comicIds["钢铁魔女"]!;
     const f10Chapter = await createChapter(ctx.sadmin, gangtieId, titled("第 7 话 F10导入"));
 

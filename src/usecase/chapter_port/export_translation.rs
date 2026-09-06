@@ -33,7 +33,7 @@ use crate::part::repo::oper::chapter::{
 };
 use crate::part::repo::oper::chapter_workflow_record::CreateChapterWorkflowRecords;
 use crate::part::repo::oper::comic::GetComicInfo;
-use crate::part::repo::oper::page::ListPageInfos;
+use crate::part::repo::oper::page::{ListPageInfos, ListPageRawIdentInfos};
 use crate::part::repo::oper::unit::ListUnitInfosByPageIds;
 use crate::part::repo::page::PageRepo;
 use crate::part::repo::team::TeamRepo;
@@ -48,12 +48,17 @@ use crate::value::chapter_workflow_record::{
 };
 
 /// Exports one chapter in every selected translation format.
+#[expect(
+    clippy::too_many_lines,
+    reason = "coordinates chapter export assembly"
+)]
 #[instrument(level = "info", skip(nucl, repo, obj_dept, token), fields(actor_user_id = %token.user_id))]
 pub async fn export_translation<N, C, R, O>(
     (nucl, repo, obj_dept): (&N, &R, &O),
     token: UserToken,
     chapter_id: String,
     formats: ExportFormatSpec,
+    with_raw_ident: bool,
 ) -> BaseRest<ExportChapterTranslationsVal>
 where
     C: Context + Send,
@@ -104,6 +109,21 @@ where
     }
     .run_on(repo)
     .await?;
+
+    let raw_ident_by_page_id =
+        match (with_raw_ident, formats.includes_label_plus()) {
+            //
+            (true, true) => ListPageRawIdentInfos {
+                page_ids: &page_ids,
+            }
+            .run_on(repo)
+            .await?
+            .into_iter()
+            .map(|info| (info.page_id, info.raw_ident))
+            .collect(),
+
+            _ => HashMap::new(),
+        };
 
     let mut page_views = Vec::with_capacity(page_infos.len());
 
@@ -170,17 +190,16 @@ where
         pages: page_views,
     };
 
-    let label_plus = formats.includes_label_plus().then(|| {
-        //
-        ChapterTranslationExportComplex::make_label_plus(
-            &page_infos,
-            &units_by_page_id,
-            &ext_by_page_id,
-        )
-    });
-
     let val = ExportChapterTranslationsVal {
-        label_plus,
+        label_plus: formats.includes_label_plus().then(|| {
+            //
+            ChapterTranslationExportComplex::make_label_plus(
+                &page_infos,
+                &units_by_page_id,
+                &ext_by_page_id,
+                &raw_ident_by_page_id,
+            )
+        }),
         poprako: formats.includes_poprako().then_some(poprako),
     };
 

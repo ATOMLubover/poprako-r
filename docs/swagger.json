@@ -1158,6 +1158,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "with_raw_ident",
+            "in": "query",
+            "description": "Use original filenames in LabelPlus; defaults to false",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -1202,6 +1211,15 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "with_raw_ident",
+            "in": "query",
+            "description": "Use original filenames in LabelPlus; defaults to false",
+            "required": false,
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -4614,6 +4632,13 @@
             "format": "int64",
             "description": "Size of the page image in bytes.",
             "minimum": 0
+          },
+          "raw_ident": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Complete original filename. Omission or null replaces it with no name."
           }
         }
       },
@@ -10220,6 +10245,13 @@
               "null"
             ],
             "description": "Existing page identifier, if updating an existing page."
+          },
+          "raw_ident": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Complete original filename. Omission or null replaces it with no name."
           }
         }
       },

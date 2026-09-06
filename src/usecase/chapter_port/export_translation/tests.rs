@@ -217,6 +217,7 @@ async fn export_returns_both_formats_and_records_one_export() {
         token("user-1"),
         "chapter-1".into(),
         ExportFormatSpec::BOTH,
+        false,
     )
     .await;
 
@@ -302,6 +303,7 @@ async fn export_by_unassigned_team_member_does_not_start_typeset_redraw() {
         token("team-member"),
         "chapter-1".into(),
         ExportFormatSpec::POPRAKO,
+        false,
     )
     .await;
 
@@ -322,4 +324,116 @@ async fn export_by_unassigned_team_member_does_not_start_typeset_redraw() {
         ChapterWorkflowRecordPayload::TranslationExported { formats }
             if *formats == ExportFormatSpec::POPRAKO
     ));
+}
+
+#[tokio::test]
+async fn export_raw_ident_is_opt_in_with_per_page_fallback_and_duplicate_names()
+{
+    use poprako_orchestra::{Nucl as _, OperStep as _};
+
+    use crate::model::write::page::PageRawIdentReplacement;
+    use crate::part::repo::oper::page::SetPageRawIdents;
+
+    let mock = Mock::new();
+
+    seed_scope(&mock);
+
+    let replacements = [PageRawIdentReplacement {
+        page_id: "page-1".into(),
+        raw_ident: Some("原稿 01.JPG".into()),
+    }];
+
+    mock.coord(async |context| {
+        SetPageRawIdents {
+            replacements: &replacements,
+        }
+        .step_on(&mock, context)
+        .await
+    })
+    .await
+    .unwrap();
+
+    let default_export = export_translation(
+        (&mock, &mock, &mock),
+        token("user-1"),
+        "chapter-1".into(),
+        ExportFormatSpec::BOTH,
+        false,
+    )
+    .await
+    .unwrap();
+
+    let raw_export = export_translation(
+        (&mock, &mock, &mock),
+        token("user-1"),
+        "chapter-1".into(),
+        ExportFormatSpec::BOTH,
+        true,
+    )
+    .await
+    .unwrap();
+
+    assert!(
+        default_export
+            .label_plus
+            .unwrap()
+            .contains(">>>>>>>>[000.png]<<<<<<<<")
+    );
+
+    let label_plus = raw_export.label_plus.unwrap();
+
+    assert!(label_plus.contains(">>>>>>>>[原稿 01.JPG]<<<<<<<<"));
+    assert!(label_plus.contains(">>>>>>>>[001.png]<<<<<<<<"));
+    assert_eq!(
+        serde_json::to_value(default_export.poprako).unwrap(),
+        serde_json::to_value(raw_export.poprako).unwrap()
+    );
+
+    let replacements = [PageRawIdentReplacement {
+        page_id: "page-2".into(),
+        raw_ident: Some("原稿 01.JPG".into()),
+    }];
+
+    mock.coord(async |context| {
+        SetPageRawIdents {
+            replacements: &replacements,
+        }
+        .step_on(&mock, context)
+        .await
+    })
+    .await
+    .unwrap();
+
+    let duplicate_export = export_translation(
+        (&mock, &mock, &mock),
+        token("user-1"),
+        "chapter-1".into(),
+        ExportFormatSpec::LABEL_PLUS,
+        true,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(
+        duplicate_export
+            .label_plus
+            .unwrap()
+            .matches(">>>>>>>>[原稿 01.JPG]<<<<<<<<")
+            .count(),
+        2
+    );
+    assert!(duplicate_export.poprako.is_none());
+
+    let native_export = export_translation(
+        (&mock, &mock, &mock),
+        token("user-1"),
+        "chapter-1".into(),
+        ExportFormatSpec::POPRAKO,
+        true,
+    )
+    .await
+    .unwrap();
+
+    assert!(native_export.label_plus.is_none());
+    assert!(native_export.poprako.is_some());
 }

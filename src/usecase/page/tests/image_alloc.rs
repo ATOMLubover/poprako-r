@@ -21,9 +21,106 @@ fn seed_alloc_scope(mock: &Mock) {
 
 fn alloc_instr(hash: u8, ext: ImageExt) -> AllocPageImageInstr {
     AllocPageImageInstr {
+        raw_ident: None,
         image_hash: ImageHash::new([hash; 32]),
         new_byte_len: 4096,
         ext,
+    }
+}
+
+#[tokio::test]
+async fn raw_ident_replacements_apply_to_deduplicated_images_without_tasks() {
+    let mock = Mock::new();
+
+    seed_alloc_scope(&mock);
+
+    seed_page_obj(&mock, "page-1", 4, true, 0, ImageExt::Png);
+
+    for (replacement, expected) in [
+        (Some("原稿 01.JPG".into()), Some("原稿 01.JPG")),
+        (None, None),
+        (Some("second.png".into()), Some("second.png")),
+        (Some("second.png".into()), Some("second.png")),
+        (None, None),
+        (None, None),
+    ] {
+        let mut instr = alloc_instr(0, ImageExt::Png);
+
+        instr.raw_ident = replacement;
+
+        let allocated = alloc_image(
+            (&mock, &mock, &mock, &mock, &IMAGE_CONFIG),
+            page_token("user-1"),
+            "page-1".into(),
+            instr,
+        )
+        .await
+        .unwrap();
+
+        let snapshot = mock.snapshot();
+
+        assert!(allocated.slot.is_none());
+        assert_eq!(
+            snapshot
+                .page_raw_idents
+                .get("page-1")
+                .map(|info| info.raw_ident.as_str()),
+            expected
+        );
+        assert_eq!(snapshot.objs["page_image"]["page-1"].version, 4);
+        assert!(snapshot.obj_tasks.is_empty());
+        assert!(snapshot.prom_records.is_empty());
+    }
+}
+
+#[tokio::test]
+async fn rejected_raw_ident_allocation_preserves_existing_name() {
+    let mock = Mock::new();
+
+    seed_alloc_scope(&mock);
+
+    let mut instr = alloc_instr(0, ImageExt::Png);
+
+    instr.raw_ident = Some("original.png".into());
+
+    alloc_image(
+        (&mock, &mock, &mock, &mock, &IMAGE_CONFIG),
+        page_token("user-1"),
+        "page-1".into(),
+        instr,
+    )
+    .await
+    .unwrap();
+
+    for (user_id, name, variant) in [
+        ("user-1", "bad\nname.png", ExpectedVariant::Args),
+        ("outsider", "replacement.png", ExpectedVariant::Perm),
+    ] {
+        let before = mock.snapshot();
+
+        let mut instr = alloc_instr(1, ImageExt::Png);
+
+        instr.raw_ident = Some(name.into());
+
+        let error = alloc_image(
+            (&mock, &mock, &mock, &mock, &IMAGE_CONFIG),
+            page_token(user_id),
+            "page-1".into(),
+            instr,
+        )
+        .await
+        .err()
+        .unwrap();
+
+        assert_expected_variant(error, variant);
+
+        let after = mock.snapshot();
+
+        assert_eq!(after.page_raw_idents, before.page_raw_idents);
+        assert_eq!(
+            after.objs["page_image"]["page-1"].version,
+            before.objs["page_image"]["page-1"].version
+        );
     }
 }
 

@@ -78,6 +78,8 @@ async fn repo_rdb_impls_use_testcontainer() {
 
     page::tests::page_roundtrip_uses_testcontainer(shared.clone()).await;
 
+    page::tests::raw_ident_roundtrip_uses_testcontainer(shared.clone()).await;
+
     system_mail::tests::system_mail_roundtrip_uses_testcontainer(
         shared.clone(),
     )

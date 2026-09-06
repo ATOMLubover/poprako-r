@@ -5,6 +5,7 @@ use std::collections::{HashMap, HashSet};
 use poprako_util::i18n::{trl, trl_kv};
 
 use crate::complex::image::ImageComplex;
+use crate::complex::page::PageComplex;
 use crate::config::image::ImageConfig;
 use crate::model::write::page::PageImageSpec;
 use crate::result::{BaseError, BaseRest, ExpectedVariant, accept};
@@ -25,6 +26,10 @@ pub fn validate_page_specs(
     let page_count = page_specs.len();
 
     validate_page_count(page_count)?;
+
+    for page_spec in page_specs {
+        PageComplex::ensure_raw_ident(page_spec.raw_ident.as_deref())?;
+    }
 
     for new_byte_len in page_specs
         .iter()

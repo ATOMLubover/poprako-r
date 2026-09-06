@@ -31,6 +31,7 @@ fn manifest_page(
     ext: ImageExt,
 ) -> PageImageInstr {
     PageImageInstr {
+        raw_ident: None,
         page_id: page_id.map(Into::into),
         image_hash: ImageHash::new([hash; 32]),
         new_byte_len,
@@ -323,6 +324,7 @@ async fn published_chapter_rejects_allocations_but_accepts_current_mark() {
         page_token("user-1"),
         "page-1".into(),
         AllocPageImageInstr {
+            raw_ident: None,
             image_hash: ImageHash::new([1; 32]),
             new_byte_len: 4096,
             ext: ImageExt::Jpg,
@@ -352,4 +354,83 @@ async fn published_chapter_rejects_allocations_but_accepts_current_mark() {
     );
     assert!(snapshot.obj_tasks.is_empty());
     assert!(snapshot.prom_records.is_empty());
+}
+
+#[tokio::test]
+async fn raw_ident_is_replaced_after_manifest_matching_and_reordering() {
+    let mock = Mock::new();
+
+    seed_manifest_scope(&mock, 0);
+
+    let mut first = manifest_page(None, 1, Some(4096), ImageExt::Png);
+
+    first.raw_ident = Some("first.JPG".into());
+
+    let mut second = manifest_page(None, 2, Some(4096), ImageExt::Png);
+
+    second.raw_ident = Some("second.PNG".into());
+
+    let allocated = alloc_manifest(&mock, vec![first, second]).await.unwrap();
+
+    let first_id = allocated.pages[0].page_id.clone();
+
+    let second_id = allocated.pages[1].page_id.clone();
+
+    let mut second = manifest_page(None, 2, None, ImageExt::Png);
+
+    second.raw_ident = Some("renamed.PNG".into());
+
+    let reordered = alloc_manifest(
+        &mock,
+        vec![second, manifest_page(None, 1, None, ImageExt::Png)],
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(reordered.pages[0].page_id, second_id);
+    assert_eq!(reordered.pages[1].page_id, first_id);
+    assert!(reordered.pages.iter().all(|page| page.slot.is_none()));
+
+    let snapshot = mock.snapshot();
+
+    assert!(!snapshot.page_raw_idents.contains_key(&first_id));
+    assert_eq!(
+        snapshot.page_raw_idents[&second_id].raw_ident,
+        "renamed.PNG"
+    );
+
+    let mut retained = manifest_page(Some(&second_id), 2, None, ImageExt::Png);
+
+    retained.raw_ident = None;
+
+    alloc_manifest(&mock, vec![retained]).await.unwrap();
+
+    let snapshot = mock.snapshot();
+
+    assert_eq!(snapshot.pages.len(), 1);
+    assert!(snapshot.page_raw_idents.is_empty());
+}
+
+#[tokio::test]
+async fn manifest_failure_rolls_back_raw_ident_assignment() {
+    let mock = Mock::new().with_obj_delete_failure();
+
+    seed_manifest_scope(&mock, 1);
+
+    mock.seed_page(page_model("page-1", 0));
+
+    seed_page_obj(&mock, "page-1", 1, true, 0, ImageExt::Png);
+
+    let mut replacement = manifest_page(None, 2, Some(4096), ImageExt::Png);
+
+    replacement.raw_ident = Some("replacement.png".into());
+
+    assert!(alloc_manifest(&mock, vec![replacement]).await.is_err());
+
+    let snapshot = mock.snapshot();
+
+    assert!(snapshot.page_raw_idents.is_empty());
+    assert_eq!(snapshot.pages.len(), 1);
+    assert_eq!(snapshot.pages[0].id, "page-1");
+    assert_eq!(snapshot.objs["page_image"]["page-1"].version, 1);
 }

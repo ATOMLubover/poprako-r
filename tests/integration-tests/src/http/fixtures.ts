@@ -655,6 +655,7 @@ export async function reservePageImage(
     api: ApiClient,
     pageId: string,
     ext: ImageExtension,
+    rawIdent?: PageImageInput["raw_ident"],
 ): Promise<ReservedPageVal> {
     const imageBytes = new TextEncoder().encode(`poprako-page-replacement-${pageId}-${ext}`);
 
@@ -665,6 +666,7 @@ export async function reservePageImage(
             image_hash: imageHash,
             new_byte_len: imageBytes.byteLength,
             ext,
+            raw_ident: rawIdent,
         }),
         200,
     );
@@ -1158,9 +1160,10 @@ export async function exportTranslations(
     api: ApiClient,
     chapterId: string,
     formats: ("poprako" | "label_plus")[],
+    withRawIdent = false,
 ): Promise<ExportChapterTranslationsVal> {
     const response = await api.get<ExportChapterTranslationsVal>(
-        `/api/v1/chapters/${chapterId}/translations/export?format=${formats.join(",")}`,
+        `/api/v1/chapters/${chapterId}/translations/export?format=${formats.join(",")}&with_raw_ident=${withRawIdent}`,
     );
 
     if (response.status !== 200) {

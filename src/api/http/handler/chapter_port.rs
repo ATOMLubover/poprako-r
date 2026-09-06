@@ -80,6 +80,7 @@ pub async fn import_translation(
     params(
         ("chapter_id" = String, Path, description = "Chapter ID"),
         ("format" = String, Query, description = "Comma-separated export formats: poprako,label_plus"),
+        ("with_raw_ident" = Option<bool>, Query, description = "Use original filenames in LabelPlus; defaults to false"),
     ),
     responses(
         (status = 200, description = "Selected translation exports", body = ExportChapterTranslationsVal, content_type = "application/json"),
@@ -94,9 +95,14 @@ pub async fn export_translation(
     Query(instr): Query<ExportChapterTranslationInstr>,
 ) -> Result<Response, HttpError> {
     //
-    let payload =
-        export::export_payload(&harn, user_token, chapter_id, instr.format)
-            .await?;
+    let payload = export::export_payload(
+        &harn,
+        user_token,
+        chapter_id,
+        instr.format,
+        instr.with_raw_ident,
+    )
+    .await?;
 
     export::body_response(payload)
 }
@@ -111,6 +117,7 @@ pub async fn export_translation(
     params(
         ("chapter_id" = String, Path, description = "Chapter ID"),
         ("format" = String, Query, description = "Comma-separated export formats: poprako,label_plus"),
+        ("with_raw_ident" = Option<bool>, Query, description = "Use original filenames in LabelPlus; defaults to false"),
     ),
     responses(
         (status = 200, description = "Selected translation exports download", body = ExportChapterTranslationsVal, content_type = "application/json"),
@@ -127,9 +134,14 @@ pub async fn export_translation_download(
     //
     let filename = format!("chapter_{}", chapter_id);
 
-    let payload =
-        export::export_payload(&harn, user_token, chapter_id, instr.format)
-            .await?;
+    let payload = export::export_payload(
+        &harn,
+        user_token,
+        chapter_id,
+        instr.format,
+        instr.with_raw_ident,
+    )
+    .await?;
 
     export::download_response(&filename, payload)
 }

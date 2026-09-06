@@ -20,6 +20,12 @@ use crate::value::chapter_port::{
 #[derive(Debug, Deserialize)]
 #[cfg_attr(feature = "swagger", derive(ToSchema))]
 pub struct ExportChapterTranslationInstr {
+    //
+    /// Use complete original filenames for `LabelPlus` references when present.
+    #[serde(default)]
+    #[cfg_attr(feature = "swagger", schema(default = false))]
+    pub with_raw_ident: bool,
+
     /// Comma-separated formats: `poprako`, `label_plus`, or both.
     #[serde(deserialize_with = "deserialize_export_format_spec")]
     pub format: ExportFormatSpec,

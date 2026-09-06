@@ -69,6 +69,36 @@ fn check_upload_role(assignment_info: &AssignmentInfo) -> BaseRest<()> {
 pub struct PageComplex;
 
 impl PageComplex {
+    /// Rejects empty names, control characters, and path separators.
+    pub fn ensure_raw_ident(raw_ident: Option<&str>) -> BaseRest<()> {
+        //
+        let Some(value) = raw_ident else {
+            return accept(());
+        };
+
+        if value.trim().is_empty()
+            || value.chars().any(|character| {
+                character.is_control() || matches!(character, '/' | '\\')
+            })
+        {
+            //
+            let message = trl("error-invalid-page-raw-ident");
+
+            tracing::warn!(
+                err_variant = ?ExpectedVariant::Args,
+                err_message = %message,
+                "invalid original page filename",
+            );
+
+            return Err(BaseError::Expected {
+                variant: ExpectedVariant::Args,
+                message,
+            });
+        }
+
+        accept(())
+    }
+
     /// Generate a unique page identifier backed by a snowflake value.
     pub fn gen_id() -> String {
         next_snowflake_id()

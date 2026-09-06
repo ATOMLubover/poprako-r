@@ -36,6 +36,7 @@ pub async fn export_payload(
     user_token: UserToken,
     chapter_id: String,
     formats: ExportFormatSpec,
+    with_raw_ident: bool,
 ) -> Result<TranslationExportPayload, HttpError> {
     //
     let val = usecase::chapter_port::export_translation::export_translation::<
@@ -48,6 +49,7 @@ pub async fn export_payload(
         user_token,
         chapter_id,
         formats,
+        with_raw_ident,
     )
     .await?;
 

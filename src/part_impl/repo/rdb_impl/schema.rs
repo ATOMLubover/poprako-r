@@ -244,6 +244,15 @@ diesel::table! {
 }
 
 diesel::table! {
+    t_page_raw_ident (f_page_id) {
+        f_page_id -> Text,
+        f_raw_ident -> Text,
+        f_created_at -> Timestamptz,
+        f_updated_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
     t_system_mail (f_id) {
         f_id -> Text,
         f_receiver_id -> Text,
@@ -385,6 +394,7 @@ diesel::joinable!(t_member -> t_user (f_user_id));
 diesel::joinable!(t_member_invitation -> t_team (f_team_id));
 diesel::joinable!(t_member_invitation -> t_user (f_inviter_id));
 diesel::joinable!(t_page -> t_chapter (f_chapter_id));
+diesel::joinable!(t_page_raw_ident -> t_page (f_page_id));
 diesel::joinable!(t_system_mail -> t_user (f_receiver_id));
 diesel::joinable!(t_term -> t_termbase (f_termbase_id));
 diesel::joinable!(t_term -> t_user (f_creator_id));
@@ -411,6 +421,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     t_obj_prom_task,
     t_page,
     t_page_image,
+    t_page_raw_ident,
     t_system_mail,
     t_team,
     t_team_avatar,

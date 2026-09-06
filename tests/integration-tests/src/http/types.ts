@@ -346,6 +346,7 @@ export interface ArchiveComicVal {
 export type ImageExtension = "jpg" | "jpeg" | "png" | "gif" | "webp" | "svg" | "avif" | "bmp" | "tif" | "tiff";
 
 export interface PageImageInput {
+    raw_ident?: string | null;
     page_id: string | null;
     image_hash: string;
     new_byte_len?: number;

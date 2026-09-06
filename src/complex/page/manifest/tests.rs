@@ -22,6 +22,7 @@ fn candidate(
 
 fn input(page_id: Option<&str>, hash: u8, ext: ImageExt) -> PageImageSpec {
     PageImageSpec {
+        raw_ident: None,
         page_id: page_id.map(Into::into),
         image_hash: ImageHash::new([hash; 32]),
         new_byte_len: Some(4096),
