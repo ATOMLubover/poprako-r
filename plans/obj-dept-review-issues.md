@@ -59,7 +59,7 @@ diff and was rechecked together on 2026-08-30. Shared validation evidence:
 - `cargo test -p poprako-server`: 353 passed;
 - `cargo test -p poprako-obj-dept -p poprako-obj-dept-macro`: passed,
   including unit, generated-manifest, RDB expansion, and doc-test targets;
-- `tests/integration-tests/pnpm typecheck`: passed;
+- `tests/integration-tests/deno task check`: passed;
 - `scripts/ci-openapi-check.sh`: passed after regenerating
   `docs/swagger.json`;
 - `git diff --check`: passed;
@@ -879,7 +879,7 @@ The following snapshot was observed before remediation:
 - PASS: cargo test -p poprako-obj-dept --all-features, 7 tests
 - PASS: cargo test -p poprako-obj-dept-macro, 1 test
 - PASS: scripts/check-rust-lines.sh
-- PASS: tests/integration-tests pnpm typecheck
+- PASS: tests/integration-tests deno task check
 - PASS: git diff --check
 - PASS: use-case naming audit, 134 public functions and no violations
 - FAIL: cargo clippy --all-targets --all-features reports avoidable singleton

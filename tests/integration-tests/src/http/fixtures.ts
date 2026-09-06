@@ -1,38 +1,32 @@
-import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
+import * as assert from "@std/assert";
 
-import { testEnv } from "../config/env.js";
-import {
-    expectError,
-    expectNoContent,
-    expectSuccessData,
-    expectSuccessList,
-} from "./assertions.js";
-import { ApiClient, clientFor } from "./apiClient.js";
-import type { ErrorBody, SuccessBody } from "./apiClient.js";
+import { testEnv } from "../config/env.ts";
+import { expectError, expectNoContent, expectSuccessData, expectSuccessList } from "./assertions.ts";
+import { ApiClient, clientFor } from "./apiClient.ts";
+import type { ErrorBody, SuccessBody } from "./apiClient.ts";
 import type {
     AnnouncementInfoView,
     ArchiveComicVal,
     AssignmentInfoView,
     AssignmentInvitationInfoView,
     ChapterInfoView,
+    ChapterTranslationPortView,
     ChapterWorkflowRecordInfoView,
     CodeVal,
     ComicInfoView,
-    ListComicInfosVal,
     CommentInfoView,
     CreateComicVal,
+    ExportChapterTranslationsVal,
     IdVal,
-    ListPageUnitInfosVal,
+    ImageExtension,
+    ListComicInfosVal,
     ListEdittedDiffPageIdsVal,
+    ListPageUnitInfosVal,
     LoginVal,
     MemberInfoView,
     MemberInvitationInfoView,
-    ImageExtension,
-    PageInfoView,
     PageImageInput,
-    ChapterTranslationPortView,
-    ExportChapterTranslationsVal,
+    PageInfoView,
     ReserveChapterPagesVal,
     ReservedPageVal,
     ReserveImageVal,
@@ -43,21 +37,21 @@ import type {
     UnitTransformInput,
     UserInfoView,
     WorksetInfoView,
-} from "./types.js";
-import { chapterStageInstr } from "../state/stages.js";
-import type { StageName, StageOper } from "../state/stages.js";
+} from "./types.ts";
+import { chapterStageInstr } from "../state/stages.ts";
+import type { StageName, StageOper } from "../state/stages.ts";
 
 // ---------- timestamp / invariant helpers ----------
 
 // Assert a value is a Unix-millisecond integer (the API's timestamp format).
 export function assertTimestampMs(value: unknown): asserts value is number {
-    assert.ok(typeof value === "number", "timestamp must be a number");
-    assert.ok(Number.isInteger(value), "timestamp must be an integer");
+    assert.assert(typeof value === "number", "timestamp must be a number");
+    assert.assert(Number.isInteger(value), "timestamp must be an integer");
 }
 
 // Assert `created_at <= updated_at` for a record carrying both fields.
 export function assertCreatedBeforeUpdated(created: number, updated: number): void {
-    assert.ok(
+    assert.assert(
         created <= updated,
         `created_at (${created}) must be <= updated_at (${updated})`,
     );
@@ -77,7 +71,7 @@ export async function login(
 
     const val = expectSuccessData(response, 200);
 
-    assert.ok(val.token.length > 20, "login token must be > 20 chars");
+    assert.assert(val.token.length > 20, "login token must be > 20 chars");
 
     api.setToken(val.token);
 
@@ -103,7 +97,7 @@ export async function registerInvitee(
 
     const val = expectSuccessData(response, 201);
 
-    assert.ok(val.token.length > 20, "register token must be > 20 chars");
+    assert.assert(val.token.length > 20, "register token must be > 20 chars");
 
     fresh.setToken(val.token);
 
@@ -159,9 +153,7 @@ export async function getTeam(api: ApiClient, teamId: string): Promise<TeamInfoV
 }
 
 export async function listTeams(api: ApiClient, userId?: string): Promise<TeamInfoView[]> {
-    const query = userId
-        ? `?user_id=${encodeURIComponent(userId)}&offset=0&limit=50`
-        : "?offset=0&limit=50";
+    const query = userId ? `?user_id=${encodeURIComponent(userId)}&offset=0&limit=50` : "?offset=0&limit=50";
 
     return expectSuccessList(await api.get<SuccessBody<TeamInfoView[]>>(`/api/v1/teams${query}`), 200);
 }
@@ -181,7 +173,7 @@ export async function updateTeam(
     );
 }
 
-export async function reserveTeamAvatar(
+export function reserveTeamAvatar(
     api: ApiClient,
     teamId: string,
     ext: ImageExtension,
@@ -202,7 +194,7 @@ async function reserveAndUploadImage(
 ): Promise<ReserveImageVal> {
     const imageBytes = new TextEncoder().encode(content);
 
-    const imageHash = createHash("sha256").update(imageBytes).digest("base64");
+    const imageHash = await sha256Base64(imageBytes);
 
     const reserved = expectSuccessData(
         await api.post<SuccessBody<ReserveImageVal>>(path, {
@@ -220,7 +212,7 @@ async function reserveAndUploadImage(
             body: imageBytes,
         });
 
-        assert.ok(response.ok, `image upload failed with status ${response.status}`);
+        assert.assert(response.ok, `image upload failed with status ${response.status}`);
     }
 
     return reserved;
@@ -240,7 +232,7 @@ export async function markTeamAvatarUploaded(
 
 // ---------- user avatar ----------
 
-export async function reserveUserAvatar(
+export function reserveUserAvatar(
     api: ApiClient,
     userId: string,
     ext: ImageExtension,
@@ -470,7 +462,7 @@ export async function updateComic(
     );
 }
 
-export async function reserveComicCover(
+export function reserveComicCover(
     api: ApiClient,
     comicId: string,
     ext: ImageExtension,
@@ -606,7 +598,7 @@ export async function revertStage(
 
 const TEST_PAGE_BYTES = new TextEncoder().encode("poprako-page-integration");
 
-const TEST_PAGE_HASH = createHash("sha256").update(TEST_PAGE_BYTES).digest("base64");
+const TEST_PAGE_HASH = await sha256Base64(TEST_PAGE_BYTES);
 
 export function newPageManifest(pageCount: number, ext: ImageExtension): PageImageInput[] {
     return Array.from({ length: pageCount }, () => ({
@@ -627,7 +619,7 @@ async function uploadReservedPages(reservedPages: ReservedPageVal[]): Promise<vo
             body: TEST_PAGE_BYTES,
         });
 
-        assert.ok(response.ok, `page upload failed with status ${response.status}`);
+        assert.assert(response.ok, `page upload failed with status ${response.status}`);
     }
 }
 
@@ -666,7 +658,7 @@ export async function reservePageImage(
 ): Promise<ReservedPageVal> {
     const imageBytes = new TextEncoder().encode(`poprako-page-replacement-${pageId}-${ext}`);
 
-    const imageHash = createHash("sha256").update(imageBytes).digest("base64");
+    const imageHash = await sha256Base64(imageBytes);
 
     const reserved = expectSuccessData(
         await api.post<SuccessBody<ReservedPageVal>>(`/api/v1/pages/${pageId}/image/alloc`, {
@@ -684,7 +676,7 @@ export async function reservePageImage(
             body: imageBytes,
         });
 
-        assert.ok(response.ok, `page upload failed with status ${response.status}`);
+        assert.assert(response.ok, `page upload failed with status ${response.status}`);
     }
 
     return reserved;
@@ -788,9 +780,7 @@ export function updateUnit(unitId: string, patch: UnitPatchFixture): UnitPatchEd
     };
 
     if ("next_id" in patch) {
-        edit.next_id = patch.next_id == null
-            ? { type: "clear" }
-            : { type: "assign", value: patch.next_id };
+        edit.next_id = patch.next_id == null ? { type: "clear" } : { type: "assign", value: patch.next_id };
     }
 
     if ("is_bubble" in patch) {
@@ -805,13 +795,10 @@ export function updateUnit(unitId: string, patch: UnitPatchFixture): UnitPatchEd
     }
 
     if ("translated_text" in patch) {
-        edit.translation =
-            patch.translated_text == null
-                ? { type: "clear" }
-                : {
-                    type: "assign",
-                    value: { translated_text: patch.translated_text },
-                };
+        edit.translation = patch.translated_text == null ? { type: "clear" } : {
+            type: "assign",
+            value: { translated_text: patch.translated_text },
+        };
     }
 
     if ("proofread_text" in patch || patch.is_proofread === true) {
@@ -1070,6 +1057,12 @@ function sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function sha256Base64(bytes: Uint8Array): Promise<string> {
+    const digest = await crypto.subtle.digest("SHA-256", Uint8Array.from(bytes).buffer);
+
+    return new Uint8Array(digest).toBase64();
+}
+
 // ---------- announcement / comment ----------
 
 export async function createAnnouncement(
@@ -1130,7 +1123,9 @@ export async function listTeamAnnouncementsPaged(
     limit: number,
 ): Promise<AnnouncementInfoView[]> {
     return expectSuccessList(
-        await api.get<SuccessBody<AnnouncementInfoView[]>>(`/api/v1/teams/${teamId}/announcements?offset=${offset}&limit=${limit}`),
+        await api.get<SuccessBody<AnnouncementInfoView[]>>(
+            `/api/v1/teams/${teamId}/announcements?offset=${offset}&limit=${limit}`,
+        ),
         200,
     );
 }
@@ -1179,7 +1174,7 @@ export async function exportTranslations(
 export async function exportPoprako(api: ApiClient, chapterId: string): Promise<ChapterTranslationPortView> {
     const exported = await exportTranslations(api, chapterId, ["poprako"]);
 
-    assert.ok(exported.poprako, "poprako export must be present");
+    assert.assert(exported.poprako, "poprako export must be present");
 
     return exported.poprako;
 }
@@ -1188,7 +1183,7 @@ export async function exportPoprako(api: ApiClient, chapterId: string): Promise<
 export async function exportLabelPlus(api: ApiClient, chapterId: string): Promise<string> {
     const exported = await exportTranslations(api, chapterId, ["label_plus"]);
 
-    assert.ok(exported.label_plus, "label-plus export must be present");
+    assert.assert(exported.label_plus, "label-plus export must be present");
 
     return exported.label_plus;
 }

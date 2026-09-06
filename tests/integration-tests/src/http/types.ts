@@ -136,73 +136,73 @@ export interface ChapterInfoView {
 export type ChapterWorkflowRecordEventView =
     | { kind: "chapter_created" }
     | {
-          kind: "chapter_subtitle_updated";
-          data: {
-              previous_subtitle: string;
-              next_subtitle: string;
-          };
-      }
+        kind: "chapter_subtitle_updated";
+        data: {
+            previous_subtitle: string;
+            next_subtitle: string;
+        };
+    }
     | { kind: "chapter_pinned" }
     | { kind: "chapter_unpinned" }
     | {
-          kind: "assignment_created";
-          data: {
-              subject_user_id: string;
-              roles: number;
-          };
-      }
+        kind: "assignment_created";
+        data: {
+            subject_user_id: string;
+            roles: number;
+        };
+    }
     | {
-          kind: "assignment_roles_updated";
-          data: {
-              subject_user_id: string;
-              previous_roles: number;
-              next_roles: number;
-          };
-      }
+        kind: "assignment_roles_updated";
+        data: {
+            subject_user_id: string;
+            previous_roles: number;
+            next_roles: number;
+        };
+    }
     | {
-          kind: "assignment_deleted";
-          data: {
-              subject_user_id: string;
-              previous_roles: number;
-          };
-      }
+        kind: "assignment_deleted";
+        data: {
+            subject_user_id: string;
+            previous_roles: number;
+        };
+    }
     | {
-          kind: "translation_imported";
-          data: {
-              format: "label_plus" | "poprako";
-              imported_page_count: number;
-              imported_unit_count: number;
-          };
-      }
+        kind: "translation_imported";
+        data: {
+            format: "label_plus" | "poprako";
+            imported_page_count: number;
+            imported_unit_count: number;
+        };
+    }
     | {
-          kind: "translation_exported";
-          data: {
-              formats: {
-                  label_plus: boolean;
-                  poprako: boolean;
-              };
-          };
-      }
+        kind: "translation_exported";
+        data: {
+            formats: {
+                label_plus: boolean;
+                poprako: boolean;
+            };
+        };
+    }
     | {
-          kind: "stage_transitioned";
-          data: {
-              stage:
-                  | "raw_provide"
-                  | "translate"
-                  | "proofread"
-                  | "typeset_redraw"
-                  | "review"
-                  | "publish";
-              previous_phase: "pending" | "active" | "completed";
-              next_phase: "pending" | "active" | "completed";
-              origin:
-                  | "manual"
-                  | "unit_edit"
-                  | "translation_import"
-                  | "translation_export"
-                  | "raw_provide_check";
-          };
-      };
+        kind: "stage_transitioned";
+        data: {
+            stage:
+                | "raw_provide"
+                | "translate"
+                | "proofread"
+                | "typeset_redraw"
+                | "review"
+                | "publish";
+            previous_phase: "pending" | "active" | "completed";
+            next_phase: "pending" | "active" | "completed";
+            origin:
+                | "manual"
+                | "unit_edit"
+                | "translation_import"
+                | "translation_export"
+                | "raw_provide_check";
+        };
+    };
 
 export interface ChapterWorkflowRecordInfoView {
     id: string;

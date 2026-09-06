@@ -13,8 +13,8 @@ development.
 - PostgreSQL and `diesel_cli`
 - Cloudflare R2 credentials
 
-Docker, Node.js, and pnpm 9 are additionally required for container builds and
-HTTP integration tests.
+Docker is additionally required for container builds. Deno 2.9 is required for
+the TypeScript HTTP integration tests.
 
 ## Run locally
 

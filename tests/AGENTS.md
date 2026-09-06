@@ -15,7 +15,7 @@ This AGENTS.md scopes guidance to `tests`. Parent AGENTS guidance still applies 
 - None
 
 ### Subdirectories
-- `integration-tests/` — pnpm/TypeScript HTTP API integration test project (`pnpm api` runs `tsx src/main.ts`).
+- `integration-tests/` — Deno/TypeScript HTTP API integration test project (`deno task api` runs the suite).
 - `materials/`
 
 <!-- OMX:AGENTS-INIT:MANUAL:START -->
@@ -24,13 +24,15 @@ This AGENTS.md scopes guidance to `tests`. Parent AGENTS guidance still applies 
   under `integration-tests/src/` MUST be reflected in
   `integration-tests/TESTCASES.md` in the same change — add/remove/rename a
   suite entry whenever the corresponding `*.ts` is touched. Run `cd
-  integration-tests && pnpm typecheck` for a fast check; use
+  integration-tests && deno task check` for a fast check; use
   `scripts/api-integration-test.sh` for an isolated database-backed run. That
   script drops its target database, so `INTEGRATION_DATABASE_URL` must name a
   disposable database.
-- The integration test project is a standalone pnpm workspace rooted at
-  `integration-tests/`. Run `pnpm install`, `pnpm typecheck`, and `pnpm api`
-  from that directory when an API server is already running.
+- The integration test project is a standalone Deno workspace rooted at
+  `integration-tests/`. Run `deno task check` and `deno task api` from that
+  directory when an API server is already running. Use
+  `deno task --env-file=../../.env api` when the required variables only exist
+  in the project `.env` file.
 - Add subtree-specific constraints, ownership notes, and test commands here.
 - Keep notes scoped to this directory and its children.
 <!-- OMX:AGENTS-INIT:MANUAL:END -->

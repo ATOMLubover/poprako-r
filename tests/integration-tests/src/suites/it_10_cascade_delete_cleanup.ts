@@ -33,13 +33,11 @@
 //
 // Status: IMPLEMENTED.
 
-import assert from "node:assert/strict";
+import * as assert from "@std/assert";
 
-import { expectError, expectStatus } from "../http/assertions.js";
-import type { ErrorBody } from "../http/apiClient.js";
-import {
-    assertTeamInvariant,
-} from "../http/invariants.js";
+import { expectError, expectStatus } from "../http/assertions.ts";
+import type { ErrorBody } from "../http/apiClient.ts";
+import { assertTeamInvariant } from "../http/invariants.ts";
 import {
     getChapter,
     getComic,
@@ -52,17 +50,17 @@ import {
     listTeamWorksets,
     listWorksetComics,
     updateMemberRoles,
-} from "../http/fixtures.js";
-import { ROLE } from "../state/roles.js";
-import type { RunCtx } from "../state/runCtx.js";
-import { cascadeExtraIds } from "./it_02_workset_comic_chapter_index.js";
+} from "../http/fixtures.ts";
+import { ROLE } from "../state/roles.ts";
+import type { RunCtx } from "../state/runCtx.ts";
+import { cascadeExtraIds } from "./it_02_workset_comic_chapter_index.ts";
 
 export const IMPLEMENTED = true as const;
 
 export async function runIt10Module(ctx: RunCtx): Promise<void> {
     const cascadeRefs = ctx.auxChapters.get("cascade");
 
-    assert.ok(cascadeRefs, "it_02 must have set the cascade aux subtree");
+    assert.assert(cascadeRefs, "it_02 must have set the cascade aux subtree");
 
     const archiveWsId = cascadeRefs.worksetId;
     const comicAId = cascadeExtraIds.cascadeComicAId;
@@ -71,7 +69,7 @@ export async function runIt10Module(ctx: RunCtx): Promise<void> {
     const comicBId = cascadeExtraIds.cascadeComicBId;
     const comicBCh1 = cascadeExtraIds.cascadeComicBCh1;
 
-    assert.ok(comicAId && comicACh1 && comicBId && comicBCh1, "cascade extra ids must be populated");
+    assert.assert(comicAId && comicACh1 && comicBId && comicBCh1, "cascade extra ids must be populated");
 
     // ---------- C9.1 delete a chapter (comicACh2) ----------
 
@@ -86,7 +84,7 @@ export async function runIt10Module(ctx: RunCtx): Promise<void> {
     // comic.chapter_count -1
     const comicAAfterChDelete = await getComic(ctx.sadmin, comicAId);
 
-    assert.equal(comicAAfterChDelete.chapter_count, comicAChCountBefore - 1);
+    assert.assertEquals(comicAAfterChDelete.chapter_count, comicAChCountBefore - 1);
 
     // ---------- C9.2 delete a comic (comicB) ----------
 
@@ -101,7 +99,7 @@ export async function runIt10Module(ctx: RunCtx): Promise<void> {
     // workset.comic_count -1
     const archiveWsAfterComicDelete = await getWorkset(ctx.sadmin, archiveWsId);
 
-    assert.equal(archiveWsAfterComicDelete.comic_count, wsComicCountBefore - 1);
+    assert.assertEquals(archiveWsAfterComicDelete.comic_count, wsComicCountBefore - 1);
 
     // comicB's chapter (comicBCh1) -> 422/2
     expectError(await ctx.sadmin.get<ErrorBody>(`/api/v1/chapters/${comicBCh1}`), 422, 2);
@@ -125,7 +123,7 @@ export async function runIt10Module(ctx: RunCtx): Promise<void> {
     // team workset list excludes it
     const teamWorksetsAfter = await listTeamWorksets(ctx.sadmin, ctx.ids.defaultTeamId);
 
-    assert.ok(!teamWorksetsAfter.find((ws) => ws.id === archiveWsId), "deleted workset must not list");
+    assert.assert(!teamWorksetsAfter.find((ws) => ws.id === archiveWsId), "deleted workset must not list");
 
     // comicA (under the deleted workset) -> 422/2
     expectError(await ctx.sadmin.get<ErrorBody>(`/api/v1/comics/${comicAId}`), 422, 2);
@@ -158,7 +156,7 @@ export async function runIt10Module(ctx: RunCtx): Promise<void> {
 
         const outsider = ctx.secondTeam.outsider;
 
-        assert.ok(outsider, "second-team outsider must exist");
+        assert.assert(outsider, "second-team outsider must exist");
 
         const secondTeamMembers = await listTeamMembers(ctx.sadmin, secondTeamId);
 
@@ -170,8 +168,8 @@ export async function runIt10Module(ctx: RunCtx): Promise<void> {
             (member) => member.user_id === outsider.userId,
         );
 
-        assert.ok(sadminMember, "sadmin second-team member must exist");
-        assert.ok(outsiderMember, "outsider second-team member must exist");
+        assert.assert(sadminMember, "sadmin second-team member must exist");
+        assert.assert(outsiderMember, "outsider second-team member must exist");
 
         // Give both members admin, then concurrently have them remove the
         // other's admin role from the same initial state.
@@ -194,7 +192,7 @@ export async function runIt10Module(ctx: RunCtx): Promise<void> {
 
         const adminRemovalResponses = [removeOutsiderAdmin, removeSadminAdmin];
 
-        assert.equal(
+        assert.assertEquals(
             adminRemovalResponses.filter((response) => response.status === 204).length,
             1,
             "exactly one concurrent admin removal must commit",
@@ -204,8 +202,8 @@ export async function runIt10Module(ctx: RunCtx): Promise<void> {
             (response) => response.status !== 204,
         );
 
-        assert.ok(rejectedAdminRemoval, "one concurrent admin removal must be rejected");
-        assert.ok(
+        assert.assert(rejectedAdminRemoval, "one concurrent admin removal must be rejected");
+        assert.assert(
             rejectedAdminRemoval.status === 403 || rejectedAdminRemoval.status === 409,
             `rejected admin removal must be 403 or 409, got ${rejectedAdminRemoval.status}`,
         );
@@ -222,7 +220,7 @@ export async function runIt10Module(ctx: RunCtx): Promise<void> {
             (member) => (member.roles & ROLE.ADMIN) !== 0,
         );
 
-        assert.equal(
+        assert.assertEquals(
             adminMembersAfterConcurrentRemoval.length,
             1,
             "concurrent role removals must retain exactly one admin",
@@ -247,7 +245,7 @@ export async function runIt10Module(ctx: RunCtx): Promise<void> {
 
         const normalizedMembers = await listTeamMembers(outsider.api, secondTeamId);
 
-        assert.deepEqual(
+        assert.assertEquals(
             normalizedMembers
                 .filter((member) => (member.roles & ROLE.ADMIN) !== 0)
                 .map((member) => member.user_id),
@@ -275,7 +273,7 @@ export async function runIt10Module(ctx: RunCtx): Promise<void> {
 
         const outsiderMembers = await listMyMembers(outsider.api);
 
-        assert.equal(
+        assert.assertEquals(
             outsiderMembers.length,
             0,
             "outsider must have no memberships after second-team delete",
@@ -297,7 +295,7 @@ export async function runIt10Module(ctx: RunCtx): Promise<void> {
     if (ctx.main) {
         const mainChapter = await getChapter(ctx.sadmin, ctx.main.chapterId);
 
-        assert.ok(mainChapter, "main chapter must still be accessible after cascade deletes");
+        assert.assert(mainChapter, "main chapter must still be accessible after cascade deletes");
     }
 
     // sanity: list workset comics / chapter pages / page units helpers still
@@ -307,17 +305,17 @@ export async function runIt10Module(ctx: RunCtx): Promise<void> {
     if (serialWsId) {
         const serialComics = await listWorksetComics(ctx.sadmin, serialWsId);
 
-        assert.ok(serialComics.length >= 1, "连载池 still has its comics");
+        assert.assert(serialComics.length >= 1, "连载池 still has its comics");
 
         if (ctx.main) {
             const mainPages = await listChapterPages(ctx.sadmin, ctx.main.chapterId);
 
-            assert.ok(mainPages.length > 0, "main chapter still has its pages");
+            assert.assert(mainPages.length > 0, "main chapter still has its pages");
 
             if (mainPages[0]) {
                 const mainUnits = await listPageUnits(ctx.sadmin, mainPages[0].id);
 
-                assert.ok(mainUnits.total_unit_count >= 0, "main page units still queryable");
+                assert.assert(mainUnits.total_unit_count >= 0, "main page units still queryable");
             }
         }
     }
@@ -325,5 +323,5 @@ export async function runIt10Module(ctx: RunCtx): Promise<void> {
     // sanity: default team profile still the seed-restored name (it_08 restored it)
     const defaultTeam = await getTeam(ctx.sadmin, ctx.ids.defaultTeamId);
 
-    assert.ok(defaultTeam.id === ctx.ids.defaultTeamId);
+    assert.assert(defaultTeam.id === ctx.ids.defaultTeamId);
 }

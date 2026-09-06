@@ -25,7 +25,7 @@ local convenience but is not a CI dependency:
 ```sh
 cargo test -p poprako-server <test-filter>
 cargo test -p poprako-server
-cd tests/integration-tests && pnpm typecheck
+cd tests/integration-tests && deno task check
 ```
 
 Run `scripts/api-integration-test.sh` only with

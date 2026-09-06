@@ -1,0 +1,26 @@
+{
+    "compilerOptions": {
+        "noUncheckedIndexedAccess": true,
+        "strict": true
+    },
+    "fmt": {
+        "indentWidth": 4,
+        "lineWidth": 120
+    },
+    "imports": {
+        "@db/postgres": "jsr:@db/postgres@0.19.5",
+        "@std/assert": "jsr:@std/assert@1.0.19"
+    },
+    "lint": {
+        "rules": {
+            "tags": ["recommended"]
+        }
+    },
+    "lock": {
+        "frozen": true
+    },
+    "tasks": {
+        "api": "deno test --allow-env=API_BASE_URL,INTEGRATION_DATABASE_URL --allow-net src/main.ts",
+        "check": "deno fmt --check && deno lint && deno check src/main.ts"
+    }
+}

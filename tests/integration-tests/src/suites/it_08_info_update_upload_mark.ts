@@ -30,12 +30,12 @@
 //
 // Status: IMPLEMENTED.
 
-import assert from "node:assert/strict";
+import * as assert from "@std/assert";
 
-import { testEnv } from "../config/env.js";
-import { expectError, expectStatus } from "../http/assertions.js";
-import type { ErrorBody } from "../http/apiClient.js";
-import { ApiClient } from "../http/apiClient.js";
+import { testEnv } from "../config/env.ts";
+import { expectError, expectStatus } from "../http/assertions.ts";
+import type { ErrorBody } from "../http/apiClient.ts";
+import { ApiClient } from "../http/apiClient.ts";
 import {
     createAnnouncement,
     createComment,
@@ -58,10 +58,10 @@ import {
     reserveTeamAvatar,
     reserveUserAvatar,
     updateAnnouncement,
-} from "../http/fixtures.js";
-import { nickname, password, qid, titled } from "../state/prefix.js";
-import { ROLE } from "../state/roles.js";
-import type { RunCtx } from "../state/runCtx.js";
+} from "../http/fixtures.ts";
+import { nickname, password, qid, titled } from "../state/prefix.ts";
+import { ROLE } from "../state/roles.ts";
+import type { RunCtx } from "../state/runCtx.ts";
 
 export const IMPLEMENTED = true as const;
 
@@ -75,18 +75,18 @@ export async function runIt08Module(ctx: RunCtx): Promise<void> {
     // team avatar
     const teamAvatarReserve = await reserveTeamAvatar(ctx.sadmin, teamId, "png");
 
-    assert.ok(teamAvatarReserve.slot?.put_url.startsWith("http"));
-    assert.ok(Number.isInteger(teamAvatarReserve.slot?.image_version));
+    assert.assert(teamAvatarReserve.slot?.put_url.startsWith("http"));
+    assert.assert(Number.isInteger(teamAvatarReserve.slot?.image_version));
 
     await markTeamAvatarUploaded(ctx.sadmin, teamId, teamAvatarReserve.slot!.image_version);
 
     const teamAfterAvatar = await getTeam(ctx.sadmin, teamId);
 
-    assert.ok(
+    assert.assert(
         teamAfterAvatar.avatar_url,
         "team avatar_url must be available after mark",
     );
-    assert.ok(
+    assert.assert(
         teamAfterAvatar.avatar_thumbnail_url,
         "team avatar_thumbnail_url must be available after mark",
     );
@@ -97,7 +97,7 @@ export async function runIt08Module(ctx: RunCtx): Promise<void> {
         "png",
     );
 
-    assert.equal(
+    assert.assertEquals(
         repeatedTeamAvatarAlloc.slot,
         null,
         "allocating the same available team avatar must be idempotent",
@@ -123,23 +123,23 @@ export async function runIt08Module(ctx: RunCtx): Promise<void> {
         2,
     );
 
-    assert.match(oversizedAvatarError.message ?? "", /1.*MiB/);
-    assert.doesNotMatch(oversizedAvatarError.message ?? "", /20 MiB/);
+    assert.assertMatch(oversizedAvatarError.message ?? "", /1.*MiB/);
+    assert.assertNotMatch(oversizedAvatarError.message ?? "", /20 MiB/);
 
     // trans_01 reserves + marks their own avatar.
     const trans01AvatarReserve = await reserveUserAvatar(trans01.api, trans01.userId, "png");
 
-    assert.ok(trans01AvatarReserve.slot?.put_url.startsWith("http"));
+    assert.assert(trans01AvatarReserve.slot?.put_url.startsWith("http"));
 
     await markUserAvatarUploaded(trans01.api, trans01.userId, trans01AvatarReserve.slot!.image_version);
 
     const trans01AfterAvatar = await getUserInfo(ctx.sadmin, trans01.userId);
 
-    assert.ok(
+    assert.assert(
         trans01AfterAvatar.avatar_url,
         "trans_01 avatar_url must be available after mark",
     );
-    assert.ok(
+    assert.assert(
         trans01AfterAvatar.avatar_thumbnail_url,
         "trans_01 avatar_thumbnail_url must be available after mark",
     );
@@ -150,7 +150,7 @@ export async function runIt08Module(ctx: RunCtx): Promise<void> {
         "png",
     );
 
-    assert.equal(
+    assert.assertEquals(
         repeatedUserAvatarAlloc.slot,
         null,
         "allocating the same available user avatar must be idempotent",
@@ -172,18 +172,18 @@ export async function runIt08Module(ctx: RunCtx): Promise<void> {
 
     const coverReserve = await reserveComicCover(ctx.sadmin, xingchenId, "png");
 
-    assert.ok(coverReserve.slot?.put_url.startsWith("http"));
-    assert.ok(Number.isInteger(coverReserve.slot?.image_version));
+    assert.assert(coverReserve.slot?.put_url.startsWith("http"));
+    assert.assert(Number.isInteger(coverReserve.slot?.image_version));
 
     await markComicCoverUploaded(ctx.sadmin, xingchenId, coverReserve.slot!.image_version);
 
     const comicAfterCover = await getComic(ctx.sadmin, xingchenId);
 
-    assert.ok(
+    assert.assert(
         comicAfterCover.cover_url,
         "comic cover_url must be available after mark",
     );
-    assert.ok(
+    assert.assert(
         comicAfterCover.cover_thumbnail_url,
         "comic cover_thumbnail_url must be available after mark",
     );
@@ -194,7 +194,7 @@ export async function runIt08Module(ctx: RunCtx): Promise<void> {
         "png",
     );
 
-    assert.equal(
+    assert.assertEquals(
         repeatedComicCoverAlloc.slot,
         null,
         "allocating the same available comic cover must be idempotent",
@@ -234,16 +234,16 @@ export async function runIt08Module(ctx: RunCtx): Promise<void> {
 
     const annList = await listTeamAnnouncements(ctx.sadmin, teamId);
 
-    assert.ok(annList.length >= 2);
-    assert.ok(annList.find((a) => a.id === ann1.id));
-    assert.ok(annList.find((a) => a.id === ann2.id));
+    assert.assert(annList.length >= 2);
+    assert.assert(annList.find((a) => a.id === ann1.id));
+    assert.assert(annList.find((a) => a.id === ann2.id));
 
     const ann1Full = annList.find((a) => a.id === ann1.id)!;
 
-    assert.equal(ann1Full.team_id, teamId);
-    assert.equal(ann1Full.user_id, ctx.ids.defaultUserId);
-    assert.equal(ann1Full.title, titled("ann-1"));
-    assert.equal(ann1Full.content, "content-1");
+    assert.assertEquals(ann1Full.team_id, teamId);
+    assert.assertEquals(ann1Full.user_id, ctx.ids.defaultUserId);
+    assert.assertEquals(ann1Full.title, titled("ann-1"));
+    assert.assertEquals(ann1Full.content, "content-1");
 
     await updateAnnouncement(
         ctx.sadmin,
@@ -255,8 +255,8 @@ export async function runIt08Module(ctx: RunCtx): Promise<void> {
     const updatedAnnList = await listTeamAnnouncements(ctx.sadmin, teamId);
     const updatedAnn1 = updatedAnnList.find((announcement) => announcement.id === ann1.id)!;
 
-    assert.equal(updatedAnn1.title, titled("ann-1-updated"));
-    assert.equal(updatedAnn1.content, "content-1-updated");
+    assert.assertEquals(updatedAnn1.title, titled("ann-1-updated"));
+    assert.assertEquals(updatedAnn1.content, "content-1-updated");
 
     expectError(
         await trans01.api.put<ErrorBody>(`/api/v1/announcements/${ann1.id}`, {
@@ -313,11 +313,11 @@ export async function runIt08Module(ctx: RunCtx): Promise<void> {
     // pagination: limit=1 returns at most 1; offset=1 excludes the first
     const page1 = await listTeamAnnouncementsPaged(ctx.sadmin, teamId, 0, 1);
 
-    assert.ok(page1.length <= 1, "limit=1 must return at most 1");
+    assert.assert(page1.length <= 1, "limit=1 must return at most 1");
 
     const page2 = await listTeamAnnouncementsPaged(ctx.sadmin, teamId, 1, 50);
 
-    assert.ok(!page2.find((a) => a.id === page1[0]?.id), "offset=1 must exclude the first");
+    assert.assert(!page2.find((a) => a.id === page1[0]?.id), "offset=1 must exclude the first");
 
     expectError(
         await trans01.api.delete<ErrorBody>(`/api/v1/announcements/${ann1.id}`),
@@ -341,11 +341,17 @@ export async function runIt08Module(ctx: RunCtx): Promise<void> {
 
     const afterDeleteAnnList = await listTeamAnnouncements(ctx.sadmin, teamId);
 
-    assert.ok(!afterDeleteAnnList.find((announcement) => announcement.id === ann2.id));
+    assert.assert(!afterDeleteAnnList.find((announcement) => announcement.id === ann2.id));
 
     // ---------- H2. comment ----------
 
-    const commenters = [ctx.sadmin, trans01, ctx.users.get("proof_01")!, ctx.users.get("type_01")!, ctx.users.get("review_01")!];
+    const commenters = [
+        ctx.sadmin,
+        trans01,
+        ctx.users.get("proof_01")!,
+        ctx.users.get("type_01")!,
+        ctx.users.get("review_01")!,
+    ];
     const createdCommentIds: string[] = [];
 
     for (let i = 0; i < commenters.length; i++) {
@@ -362,10 +368,10 @@ export async function runIt08Module(ctx: RunCtx): Promise<void> {
 
     const commentList = await listTeamComments(ctx.sadmin, teamId);
 
-    assert.ok(commentList.length >= 5);
+    assert.assert(commentList.length >= 5);
 
     for (const id of createdCommentIds) {
-        assert.ok(commentList.find((c) => c.id === id), `comment ${id} must be in list`);
+        assert.assert(commentList.find((c) => c.id === id), `comment ${id} must be in list`);
     }
 
     // comment does not bump team.updated_at
@@ -376,7 +382,11 @@ export async function runIt08Module(ctx: RunCtx): Promise<void> {
 
     const teamAfterComment = await getTeam(ctx.sadmin, teamId);
 
-    assert.equal(teamAfterComment.updated_at, teamBeforeComment.updated_at, "comment must not bump team.updated_at");
+    assert.assertEquals(
+        teamAfterComment.updated_at,
+        teamBeforeComment.updated_at,
+        "comment must not bump team.updated_at",
+    );
 
     // ---------- H3. user profile update ----------
 
@@ -395,8 +405,8 @@ export async function runIt08Module(ctx: RunCtx): Promise<void> {
 
     const trans01After = await getUserInfo(ctx.sadmin, trans01.userId);
 
-    assert.equal(trans01After.nickname, newNickname);
-    assert.equal(trans01After.qid, trans01.qid);
+    assert.assertEquals(trans01After.nickname, newNickname);
+    assert.assertEquals(trans01After.qid, trans01.qid);
 
     // restore nickname for downstream consistency
     await trans01.api.put<null>(`/api/v1/users/${trans01.userId}`, {
@@ -454,7 +464,7 @@ export async function runIt08Module(ctx: RunCtx): Promise<void> {
     // throwaway is a default-team member
     const throwawayMembers = await listMyMembers(throwawayClient.api);
 
-    assert.ok(throwawayMembers.find((m) => m.team_id === teamId), "throwaway must be a default-team member");
+    assert.assert(throwawayMembers.find((m) => m.team_id === teamId), "throwaway must be a default-team member");
 
     // sadmin tries to delete throwaway -> 403/4 (only self can delete)
     expectError(
@@ -484,7 +494,7 @@ export async function runIt08Module(ctx: RunCtx): Promise<void> {
     // deleted user's member row gone from default-team member list
     const teamMembersAfterDelete = await listTeamMembers(ctx.sadmin, teamId);
 
-    assert.ok(
+    assert.assert(
         !teamMembersAfterDelete.find((m) => m.user_id === throwawayClient.userId),
         "deleted user's membership must be gone",
     );

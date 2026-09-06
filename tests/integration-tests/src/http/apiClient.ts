@@ -43,23 +43,23 @@ export class ApiClient {
         return this.token !== null;
     }
 
-    async get<T>(path: string): Promise<ApiResponse<T>> {
+    get<T>(path: string): Promise<ApiResponse<T>> {
         return this.retryRequest<T>("GET", path);
     }
 
-    async post<T>(path: string, body?: JsonBody): Promise<ApiResponse<T>> {
+    post<T>(path: string, body?: JsonBody): Promise<ApiResponse<T>> {
         return this.retryRequest<T>("POST", path, body);
     }
 
-    async put<T>(path: string, body?: JsonBody): Promise<ApiResponse<T>> {
+    put<T>(path: string, body?: JsonBody): Promise<ApiResponse<T>> {
         return this.retryRequest<T>("PUT", path, body);
     }
 
-    async patch<T>(path: string, body?: JsonBody): Promise<ApiResponse<T>> {
+    patch<T>(path: string, body?: JsonBody): Promise<ApiResponse<T>> {
         return this.retryRequest<T>("PATCH", path, body);
     }
 
-    async delete<T>(path: string): Promise<ApiResponse<T>> {
+    delete<T>(path: string): Promise<ApiResponse<T>> {
         return this.retryRequest<T>("DELETE", path);
     }
 

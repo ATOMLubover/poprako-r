@@ -2,15 +2,12 @@
 //
 // Covers F1/F2 creation and linked ordering plus F10 import/export.
 
-import assert from "node:assert/strict";
+import * as assert from "@std/assert";
 
-import { grantChapterWorkerRoles, withDatabaseClient } from "../db/seed.js";
-import { expectError, expectStatus } from "../http/assertions.js";
-import type { ErrorBody } from "../http/apiClient.js";
-import {
-    assertPageExportInvariant,
-    assertPageUnitInvariant,
-} from "../http/invariants.js";
+import { grantChapterWorkerRoles, withDatabaseClient } from "../db/seed.ts";
+import { expectError, expectStatus } from "../http/assertions.ts";
+import type { ErrorBody } from "../http/apiClient.ts";
+import { assertPageExportInvariant, assertPageUnitInvariant } from "../http/invariants.ts";
 import {
     createChapter,
     exportPoprako,
@@ -24,15 +21,15 @@ import {
     savePageUnits,
     searchChapterUnits,
     transformChapterUnits,
-} from "../http/fixtures.js";
-import { titled } from "../state/prefix.js";
-import type { RunCtx } from "../state/runCtx.js";
+} from "../http/fixtures.ts";
+import { titled } from "../state/prefix.ts";
+import type { RunCtx } from "../state/runCtx.ts";
 
 export const IMPLEMENTED = true as const;
 
 export async function runIt05Module(ctx: RunCtx): Promise<void> {
-    assert.ok(ctx.main, "it_02 must have set ctx.main");
-    assert.ok(ctx.main.pageIds.length >= 3, "it_03 must have reserved at least 3 pages on main");
+    assert.assert(ctx.main, "it_02 must have set ctx.main");
+    assert.assert(ctx.main.pageIds.length >= 3, "it_03 must have reserved at least 3 pages on main");
 
     const mainChapterId = ctx.main.chapterId;
     const p0Id = ctx.main.pageIds[0]!;
@@ -41,25 +38,23 @@ export async function runIt05Module(ctx: RunCtx): Promise<void> {
 
     // ---------- F1. create 5 bubble units on p0 ----------
 
-    const f1Edits = Array.from({ length: 5 }, (_, i) =>
-        newBubbleUnit(`p0_lu_0${i + 1}`, 0.1 * (i + 1), 0.1 * (i + 1)),
-    );
+    const f1Edits = Array.from({ length: 5 }, (_, i) => newBubbleUnit(`p0_lu_0${i + 1}`, 0.1 * (i + 1), 0.1 * (i + 1)));
 
     const f1Save = await savePageUnits(trans01.api, p0Id, f1Edits);
 
-    assert.equal(f1Save.total_unit_count, 5);
-    assert.equal(f1Save.translated_unit_count, 0);
-    assert.equal(f1Save.proofread_unit_count, 0);
+    assert.assertEquals(f1Save.total_unit_count, 5);
+    assert.assertEquals(f1Save.translated_unit_count, 0);
+    assert.assertEquals(f1Save.proofread_unit_count, 0);
 
     const mainAfterF1 = await getChapter(ctx.sadmin, mainChapterId);
 
-    assert.equal(mainAfterF1.total_unit_count, 5);
+    assert.assertEquals(mainAfterF1.total_unit_count, 5);
 
     const exportAfterF1 = await exportPoprako(ctx.sadmin, mainChapterId);
     const p0ExportAfterF1 = exportAfterF1.pages.find((p) => p.page_id === p0Id);
 
-    assert.ok(p0ExportAfterF1, "export must include p0");
-    assert.equal(p0ExportAfterF1!.units.length, 5);
+    assert.assert(p0ExportAfterF1, "export must include p0");
+    assert.assertEquals(p0ExportAfterF1!.units.length, 5);
 
     await assertPageUnitInvariant(ctx.sadmin, p0Id);
     await assertPageExportInvariant(ctx.sadmin, mainChapterId, p0Id);
@@ -82,7 +77,7 @@ export async function runIt05Module(ctx: RunCtx): Promise<void> {
 
     const f2Save = await savePageUnits(trans01.api, p0Id, [anchoredEdit]);
 
-    assert.equal(f2Save.total_unit_count, 6, "total 5 -> 6 after next_id insert");
+    assert.assertEquals(f2Save.total_unit_count, 6, "total 5 -> 6 after next_id insert");
 
     const exportAfterF2 = await exportPoprako(ctx.sadmin, mainChapterId);
     const p0ExportAfterF2 = exportAfterF2.pages.find((p) => p.page_id === p0Id)!;
@@ -92,10 +87,10 @@ export async function runIt05Module(ctx: RunCtx): Promise<void> {
         .map((u) => u.unit_id);
 
     // New unit inserted before the 2nd unit: [u0, inserted, u1, u2, u3, u4]
-    assert.equal(f2Order.length, 6);
-    assert.equal(f2Order[0], p0UnitIds[0], "u0 stays first");
-    assert.equal(f2Order[1], f2Save.unit_infos[1]!.id, "inserted unit before u1");
-    assert.equal(f2Order[2], p0UnitIds[1], "u1 shifted to index 2");
+    assert.assertEquals(f2Order.length, 6);
+    assert.assertEquals(f2Order[0], p0UnitIds[0], "u0 stays first");
+    assert.assertEquals(f2Order[1], f2Save.unit_infos[1]!.id, "inserted unit before u1");
+    assert.assertEquals(f2Order[2], p0UnitIds[1], "u1 shifted to index 2");
 
     await assertPageExportInvariant(ctx.sadmin, mainChapterId, p0Id);
 
@@ -131,7 +126,7 @@ export async function runIt05Module(ctx: RunCtx): Promise<void> {
         mainChapterId,
     );
 
-    assert.deepEqual(edittedDiffPages.page_ids, [p0Id]);
+    assert.assertEquals(edittedDiffPages.page_ids, [p0Id]);
 
     const searchMatches = await searchChapterUnits(
         trans01.api,
@@ -140,7 +135,7 @@ export async function runIt05Module(ctx: RunCtx): Promise<void> {
         " alpha ",
     );
 
-    assert.deepEqual(searchMatches.map((unit) => unit.id), [p0UnitIds[0]]);
+    assert.assertEquals(searchMatches.map((unit) => unit.id), [p0UnitIds[0]]);
 
     await savePageUnits(trans01.api, p0Id, [
         {
@@ -160,9 +155,9 @@ export async function runIt05Module(ctx: RunCtx): Promise<void> {
         "%_\\",
     );
 
-    assert.deepEqual(literalMatches.map((unit) => unit.id), [p0UnitIds[0]]);
+    assert.assertEquals(literalMatches.map((unit) => unit.id), [p0UnitIds[0]]);
 
-    assert.deepEqual(
+    assert.assertEquals(
         await searchChapterUnits(
             trans01.api,
             mainChapterId,
@@ -173,7 +168,7 @@ export async function runIt05Module(ctx: RunCtx): Promise<void> {
         "search remains case-sensitive",
     );
 
-    assert.deepEqual(
+    assert.assertEquals(
         await searchChapterUnits(
             trans01.api,
             mainChapterId,
@@ -191,9 +186,9 @@ export async function runIt05Module(ctx: RunCtx): Promise<void> {
         "reviewed",
     );
 
-    assert.deepEqual(proofreadMatches.map((unit) => unit.id), [p0UnitIds[0]]);
+    assert.assertEquals(proofreadMatches.map((unit) => unit.id), [p0UnitIds[0]]);
 
-    assert.deepEqual(
+    assert.assertEquals(
         await searchChapterUnits(
             trans01.api,
             mainChapterId,
@@ -244,7 +239,7 @@ export async function runIt05Module(ctx: RunCtx): Promise<void> {
         "visible-order-marker",
     );
 
-    assert.deepEqual(
+    assert.assertEquals(
         visibleOrderMatches.map((unit) => unit.id),
         [p0UnitIds[0], p0UnitIds[1]],
         "hidden chain nodes are excluded without changing visible order",
@@ -290,7 +285,7 @@ export async function runIt05Module(ctx: RunCtx): Promise<void> {
         "final",
     );
 
-    assert.equal(transformed[0]!.translated_text, "beta final");
+    assert.assertEquals(transformed[0]!.translated_text, "beta final");
 
     expectError(
         await trans01.api.get<ErrorBody>(
@@ -338,7 +333,7 @@ export async function runIt05Module(ctx: RunCtx): Promise<void> {
         "日",
     );
 
-    assert.equal(hundredMatches.length, 100);
+    assert.assertEquals(hundredMatches.length, 100);
 
     await savePageUnits(ctx.sadmin, searchLimitPages.pages[1]!.page_id, [
         {
@@ -369,19 +364,19 @@ export async function runIt05Module(ctx: RunCtx): Promise<void> {
         "label_plus",
     ]);
 
-    assert.ok(mainExports.poprako, "combined export must contain PopRaKo");
+    assert.assert(mainExports.poprako, "combined export must contain PopRaKo");
 
-    assert.ok(mainExports.label_plus, "combined export must contain LabelPlus");
+    assert.assert(mainExports.label_plus, "combined export must contain LabelPlus");
 
     const mainExport = mainExports.poprako;
 
-    assert.ok(mainExport.chapter_id);
-    assert.ok(mainExport.comic_id);
-    assert.ok(mainExport.pages.length > 0);
+    assert.assert(mainExport.chapter_id);
+    assert.assert(mainExport.comic_id);
+    assert.assert(mainExport.pages.length > 0);
 
     const mainLabelPlus = mainExports.label_plus;
 
-    assert.ok(mainLabelPlus.length > 0, "label-plus export must be non-empty text");
+    assert.assert(mainLabelPlus.length > 0, "label-plus export must be non-empty text");
 
     const gangtieId = ctx.ids.comicIds["钢铁魔女"]!;
     const f10Chapter = await createChapter(ctx.sadmin, gangtieId, titled("第 7 话 F10导入"));
@@ -389,7 +384,7 @@ export async function runIt05Module(ctx: RunCtx): Promise<void> {
     await grantChapterWorkerRoles(f10Chapter.id, ctx.ids.defaultUserId);
 
     await withDatabaseClient(async (client) => {
-        await client.query(
+        await client.queryObject(
             `
               UPDATE "t_assignment"
               SET
@@ -408,7 +403,7 @@ export async function runIt05Module(ctx: RunCtx): Promise<void> {
         newPageManifest(mainExport.pages.length, "jpg"),
     );
 
-    assert.equal(f10Reserve.pages.length, mainExport.pages.length);
+    assert.assertEquals(f10Reserve.pages.length, mainExport.pages.length);
 
     // JSON body and query enum values use snake_case.
     expectStatus(
@@ -450,34 +445,34 @@ export async function runIt05Module(ctx: RunCtx): Promise<void> {
 
     const populatedPageCount = mainExport.pages.filter((page) => page.units.length > 0).length;
 
-    assert.equal(imported.imported_page_count, populatedPageCount);
-    assert.equal(
+    assert.assertEquals(imported.imported_page_count, populatedPageCount);
+    assert.assertEquals(
         imported.imported_unit_count,
         mainExport.pages.reduce((count, page) => count + page.units.length, 0),
     );
 
     const importedExport = await exportPoprako(ctx.sadmin, f10Chapter.id);
 
-    assert.equal(importedExport.pages.length, mainExport.pages.length);
+    assert.assertEquals(importedExport.pages.length, mainExport.pages.length);
 
     mainExport.pages.forEach((sourcePage, pageIndex) => {
         const targetPage = importedExport.pages[pageIndex]!;
         const sourceUnits = [...sourcePage.units].sort((a, b) => a.unit_index - b.unit_index);
         const targetUnits = [...targetPage.units].sort((a, b) => a.unit_index - b.unit_index);
 
-        assert.equal(targetUnits.length, sourceUnits.length);
+        assert.assertEquals(targetUnits.length, sourceUnits.length);
 
         sourceUnits.forEach((sourceUnit, unitIndex) => {
             const targetUnit = targetUnits[unitIndex]!;
 
-            assert.equal(targetUnit.unit_index, sourceUnit.unit_index);
-            assert.equal(targetUnit.x_coord, sourceUnit.x_coord);
-            assert.equal(targetUnit.y_coord, sourceUnit.y_coord);
-            assert.equal(targetUnit.is_bubble, sourceUnit.is_bubble);
-            assert.equal(targetUnit.translated_text, sourceUnit.translated_text);
-            assert.equal(targetUnit.is_proofread, sourceUnit.is_proofread);
-            assert.equal(targetUnit.proofread_text, sourceUnit.proofread_text);
-            assert.notEqual(targetUnit.unit_id, sourceUnit.unit_id);
+            assert.assertEquals(targetUnit.unit_index, sourceUnit.unit_index);
+            assert.assertEquals(targetUnit.x_coord, sourceUnit.x_coord);
+            assert.assertEquals(targetUnit.y_coord, sourceUnit.y_coord);
+            assert.assertEquals(targetUnit.is_bubble, sourceUnit.is_bubble);
+            assert.assertEquals(targetUnit.translated_text, sourceUnit.translated_text);
+            assert.assertEquals(targetUnit.is_proofread, sourceUnit.is_proofread);
+            assert.assertEquals(targetUnit.proofread_text, sourceUnit.proofread_text);
+            assert.assertNotEquals(targetUnit.unit_id, sourceUnit.unit_id);
         });
     });
 
@@ -490,7 +485,7 @@ export async function runIt05Module(ctx: RunCtx): Promise<void> {
     );
 
     const repeatedExport = await exportPoprako(ctx.sadmin, f10Chapter.id);
-    assert.deepEqual(
+    assert.assertEquals(
         repeatedExport.pages.map((page) => page.units.length),
         importedExport.pages.map((page) => page.units.length),
     );
@@ -498,7 +493,7 @@ export async function runIt05Module(ctx: RunCtx): Promise<void> {
     const keepSource = JSON.parse(JSON.stringify(mainExport)) as typeof mainExport;
     const keepSourcePage = keepSource.pages.find((page) => page.units.length > 0);
 
-    assert.ok(keepSourcePage, "export fixture must contain a populated page");
+    assert.assert(keepSourcePage, "export fixture must contain a populated page");
 
     keepSourcePage.units[0]!.translated_text = "keep must not replace this text";
 
@@ -512,9 +507,9 @@ export async function runIt05Module(ctx: RunCtx): Promise<void> {
     );
     const afterKeepExport = await exportPoprako(ctx.sadmin, f10Chapter.id);
 
-    assert.equal(kept.imported_page_count, 0);
-    assert.equal(kept.imported_unit_count, 0);
-    assert.deepEqual(afterKeepExport, beforeKeepExport);
+    assert.assertEquals(kept.imported_page_count, 0);
+    assert.assertEquals(kept.imported_unit_count, 0);
+    assert.assertEquals(afterKeepExport, beforeKeepExport);
 
     // cleanup F10 aux chapter
     expectStatus(await ctx.sadmin.delete<null>(`/api/v1/chapters/${f10Chapter.id}`), 204);

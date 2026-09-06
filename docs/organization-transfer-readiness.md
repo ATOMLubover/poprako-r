@@ -178,8 +178,8 @@ sh fmt/run-check.sh
 
 ```sh
 cd tests/integration-tests
-pnpm install --frozen-lockfile
-pnpm typecheck
+deno ci
+deno task check
 ```
 
 - [x] Add a scheduled or manually triggered full HTTP integration-test job.
@@ -188,7 +188,7 @@ pnpm typecheck
 - [x] Regenerate `docs/swagger.json` through a checked-in `sh` script into a
   temporary file and fail CI when the checked-in specification differs.
 - [x] Add dependency security checks.
-  - [x] Enable Dependabot for Cargo, pnpm, and GitHub Actions, targeting
+  - [x] Enable Dependabot for Cargo and GitHub Actions, targeting
     `main`.
   - [x] Run pinned `cargo-audit` through `sh scripts/ci-audit.sh`; mark this
     complete only after the first successful audit.

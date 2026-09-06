@@ -17,18 +17,12 @@
 //
 // Status: IMPLEMENTED.
 
-import assert from "node:assert/strict";
+import * as assert from "@std/assert";
 
-import { seedIds } from "../db/seed.js";
-import {
-    expectError,
-    expectNoContent,
-    expectStatus,
-    expectSuccessData,
-    expectSuccessList,
-} from "../http/assertions.js";
-import type { ErrorBody, SuccessBody } from "../http/apiClient.js";
-import { ApiClient } from "../http/apiClient.js";
+import { seedIds } from "../db/seed.ts";
+import { expectError, expectSuccessData } from "../http/assertions.ts";
+import type { ErrorBody, SuccessBody } from "../http/apiClient.ts";
+import { ApiClient } from "../http/apiClient.ts";
 import {
     assertCreatedBeforeUpdated,
     assertTimestampMs,
@@ -38,10 +32,9 @@ import {
     listTeams,
     login,
     logout,
-} from "../http/fixtures.js";
-import type { LoginVal, MemberInfoView, TeamInfoView } from "../http/types.js";
-import { testEnv } from "../config/env.js";
-import type { RunCtx } from "../state/runCtx.js";
+} from "../http/fixtures.ts";
+import { testEnv } from "../config/env.ts";
+import type { RunCtx } from "../state/runCtx.ts";
 
 export const IMPLEMENTED = true as const;
 
@@ -50,35 +43,35 @@ export async function runIt00Module(ctx: RunCtx): Promise<void> {
 
     const loginVal = await login(ctx.sadmin, "123456", "123456");
 
-    assert.equal(loginVal.user_id, seedIds.defaultUserId);
+    assert.assertEquals(loginVal.user_id, seedIds.defaultUserId);
 
     const me = await getMyInfo(ctx.sadmin);
 
-    assert.equal(me.id, seedIds.defaultUserId);
-    assert.equal(me.is_sadmin, true);
+    assert.assertEquals(me.id, seedIds.defaultUserId);
+    assert.assertEquals(me.is_sadmin, true);
 
     // /members/me?incl=team&offset=0&limit=20 returns at least the seed member.
     const myMembers = await listMyMembers(ctx.sadmin, "&incl=team");
 
-    assert.ok(myMembers.length >= 1, "sadmin must have at least one membership");
+    assert.assert(myMembers.length >= 1, "sadmin must have at least one membership");
 
     const defaultMember = myMembers.find((member) => member.team_id === ctx.ids.defaultTeamId);
 
-    assert.ok(defaultMember, "sadmin must be a member of the default team");
-    assert.equal(defaultMember?.user_id, seedIds.defaultUserId);
-    assert.ok(defaultMember?.team, "incl=team must embed the team on /members/me");
+    assert.assert(defaultMember, "sadmin must be a member of the default team");
+    assert.assertEquals(defaultMember?.user_id, seedIds.defaultUserId);
+    assert.assert(defaultMember?.team, "incl=team must embed the team on /members/me");
 
     // /teams (no user_id) for sadmin returns 200 and includes the default team.
     const teams = await listTeams(ctx.sadmin);
 
     const defaultTeam = teams.find((team) => team.id === ctx.ids.defaultTeamId);
 
-    assert.ok(defaultTeam, "default team must be present in /teams");
+    assert.assert(defaultTeam, "default team must be present in /teams");
 
     // default team exists and has valid timestamps.
     const teamInfo = await getTeam(ctx.sadmin, ctx.ids.defaultTeamId);
 
-    assert.ok(teamInfo.id, "team id must be present");
+    assert.assert(teamInfo.id, "team id must be present");
 
     // Timestamp fields are Unix-ms integers and created_at <= updated_at.
     assertTimestampMs(teamInfo.created_at);
