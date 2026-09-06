@@ -77,7 +77,8 @@ where
         + Sync,
     O: ObjDeptView<PageImage, C> + Sync,
 {
-    ensure_user_can_export::<C, R>(repo, &token, &chapter_id).await?;
+    let actor_is_chapter_assignee =
+        ensure_user_can_export::<C, R>(repo, &token, &chapter_id).await?;
 
     let chapter_info = GetChapterInfo {
         id: &chapter_id,
@@ -194,6 +195,7 @@ where
         &chapter_info.id,
         token.user_id,
         formats,
+        actor_is_chapter_assignee,
     )
     .await?;
 
@@ -235,12 +237,13 @@ fn non_empty(text: &str) -> Option<String> {
     Some(text.to_string())
 }
 
-// Persists a completed export and starts typesetting/redraw in one transaction.
+// Persists a completed export and conditionally starts typesetting/redraw in one transaction.
 async fn persist_export_record<N, C, R>(
     (nucl, repo): (&N, &R),
     chapter_id: &str,
     actor_user_id: String,
     formats: ExportFormatSpec,
+    actor_is_chapter_assignee: bool,
 ) -> BaseRest<()>
 where
     C: Context + Send,
@@ -270,15 +273,18 @@ where
             .step_on(repo, context)
             .await?;
 
-            start_pending_stages(
-                repo,
-                context,
-                &chapter_info.id,
-                Some(actor_user_id),
-                ChapterWorkflowRecordOrigin::TranslationExport,
-                &[Stage::TypesetRedraw],
-            )
-            .await?;
+            if actor_is_chapter_assignee {
+                //
+                start_pending_stages(
+                    repo,
+                    context,
+                    &chapter_info.id,
+                    Some(actor_user_id),
+                    ChapterWorkflowRecordOrigin::TranslationExport,
+                    &[Stage::TypesetRedraw],
+                )
+                .await?;
+            }
 
             accept(())
         })
@@ -287,12 +293,12 @@ where
     accept(())
 }
 
-// Load concrete membership or assignment evidence for chapter export.
+// Authorizes chapter export and returns whether the caller is assigned to the chapter.
 async fn ensure_user_can_export<C, R>(
     repo: &R,
     token: &UserToken,
     chapter_id: &str,
-) -> BaseRest<()>
+) -> BaseRest<bool>
 where
     C: Context,
     R: TeamRepo<C> + MemberRepo<C> + AssignmentRepo<C> + Sync,
@@ -308,15 +314,6 @@ where
     .run_on(repo)
     .await?;
 
-    if let Some(member_info) = member_info {
-        //
-        return ChapterPortPermComplex::ensure_user_can_export(
-            &ChapterExportAccess::Member {
-                member_info: &member_info,
-            },
-        );
-    }
-
     let assignment_info = FindAssignmentInfo::ChapterUser {
         chapter_id,
         user_id: &token.user_id,
@@ -324,28 +321,43 @@ where
     .run_on(repo)
     .await?;
 
-    let Some(assignment_info) = assignment_info else {
+    match (member_info.as_ref(), assignment_info.as_ref()) {
         //
-        let err_message = trl("error-chapter-port-export-perm-required");
+        (Some(member_info), assignment_info) => {
+            //
+            ChapterPortPermComplex::ensure_user_can_export(
+                &ChapterExportAccess::Member { member_info },
+            )?;
 
-        tracing::warn!(
-            err_variant = ?ExpectedVariant::Perm,
-            err_message = %err_message,
-            chapter_id = %chapter_id,
-            user_id = %token.user_id,
-            operation = "export",
-            "expected error: chapter port export permission denied",
-        );
+            accept(assignment_info.is_some())
+        }
 
-        return Err(BaseError::Expected {
-            variant: ExpectedVariant::Perm,
-            message: err_message,
-        });
-    };
+        (None, Some(assignment_info)) => {
+            //
+            ChapterPortPermComplex::ensure_user_can_export(
+                &ChapterExportAccess::Assignee { assignment_info },
+            )?;
 
-    ChapterPortPermComplex::ensure_user_can_export(
-        &ChapterExportAccess::Assignee {
-            assignment_info: &assignment_info,
-        },
-    )
+            accept(true)
+        }
+
+        (None, None) => {
+            //
+            let err_message = trl("error-chapter-port-export-perm-required");
+
+            tracing::warn!(
+                err_variant = ?ExpectedVariant::Perm,
+                err_message = %err_message,
+                chapter_id = %chapter_id,
+                user_id = %token.user_id,
+                operation = "export",
+                "expected error: chapter port export permission denied",
+            );
+
+            Err(BaseError::Expected {
+                variant: ExpectedVariant::Perm,
+                message: err_message,
+            })
+        }
+    }
 }
