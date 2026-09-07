@@ -2,6 +2,8 @@
 set -eu
 
 project_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+python3 "$project_root/scripts/test-production-cache.py"
+
 test_root=$(mktemp -d)
 fake_bin="${test_root}/bin"
 command_log="${test_root}/commands.log"
@@ -340,6 +342,7 @@ TEST_SOURCE_IMAGE="$source_image" \
 sh "$project_root/scripts/ci-build-prod.sh" >"$command_output" 2>&1
 
 assert_contains "docker buildx build" "$command_log"
+assert_contains "--progress plain" "$command_log"
 assert_contains "buildx-config ${initial_docker_config}/buildx" "$command_log"
 assert_contains "buildx-builder test-builder" "$command_log"
 assert_contains "--cache-from type=registry" "$command_log"
