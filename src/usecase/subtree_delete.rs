@@ -8,7 +8,9 @@ use poprako_obj_dept::oper::DeleteObjs;
 
 use crate::model::read::proj::subtree_delete::SubtreeDeleteSweepTarget;
 use crate::part::nucl::ReptRead;
-use crate::part::obj_dept::{ComicCover, PageImage, TeamAvatar};
+use crate::part::obj_dept::{
+    ChapterArtwork, ComicCover, PageImage, TeamAvatar,
+};
 use crate::part::repo::oper::subtree_delete::{
     ClaimSubtreeSweep, ListSubtreePageIds, SweepSubtree,
 };
@@ -27,7 +29,8 @@ where
     N: Nucl<Context = C, Error = BaseError> + Sync,
     C::Level: AtLeast<ReptRead>,
     R: SubtreeRepo<C> + Send + Sync,
-    O: ObjDept<PageImage, C>
+    O: ObjDept<ChapterArtwork, C>
+        + ObjDept<PageImage, C>
         + ObjDept<ComicCover, C>
         + ObjDept<TeamAvatar, C>
         + Send
@@ -47,6 +50,11 @@ where
                 //
                 SubtreeDeleteSweepTarget::Chapter { id } => {
                     //
+                    DeleteObjs::<ChapterArtwork>::new(std::slice::from_ref(id))
+                        .step_on(obj_dept, context)
+                        .await
+                        .map_err(BaseError::from)?;
+
                     let page_ids = ListSubtreePageIds { chapter_id: id }
                         .step_on(repo, context)
                         .await?;

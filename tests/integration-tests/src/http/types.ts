@@ -184,6 +184,12 @@ export type ChapterWorkflowRecordEventView =
         };
     }
     | {
+        kind: "artwork_exported";
+        data: {
+            artwork_version: number;
+        };
+    }
+    | {
         kind: "stage_transitioned";
         data: {
             stage:
@@ -200,7 +206,8 @@ export type ChapterWorkflowRecordEventView =
                 | "unit_edit"
                 | "translation_import"
                 | "translation_export"
-                | "raw_provide_check";
+                | "raw_provide_check"
+                | "artwork_upload";
         };
     };
 
@@ -346,6 +353,7 @@ export interface ArchiveComicVal {
 export type ImageExtension = "jpg" | "jpeg" | "png" | "gif" | "webp" | "svg" | "avif" | "bmp" | "tif" | "tiff";
 
 export interface PageImageInput {
+    raw_ident?: string | null;
     page_id: string | null;
     image_hash: string;
     new_byte_len?: number;
@@ -435,4 +443,10 @@ export interface ChapterTranslationPortView {
 export interface ExportChapterTranslationsVal {
     label_plus: string | null;
     poprako: ChapterTranslationPortView | null;
+    raw_idents: ChapterPageRawIdentVal[] | null;
+}
+
+export interface ChapterPageRawIdentVal {
+    page_id: string;
+    raw_ident: string;
 }

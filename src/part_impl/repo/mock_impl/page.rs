@@ -3,13 +3,21 @@
 // Internal organization of the `orchestra` module.
 mod orchestra;
 
-use crate::model::read::proj::page::{PageInfo, PageUnitScope};
+use poprako_orchestra::{Run, Step};
+
+use crate::model::read::proj::page::{
+    PageInfo, PageRawIdentInfo, PageUnitScope,
+};
 use crate::model::read::proj::unit::UnitCountMetrics;
 use crate::model::write::page::PageManifestEntry;
-use crate::part_impl::repo::mock_impl::{
-    MockState, expected, now, unrecoverable,
+use crate::part::nucl::ReptRead;
+use crate::part::repo::oper::page::{
+    ListPageRawIdentInfos, UpdatePageRawIdents,
 };
-use crate::result::{BaseRest, accept};
+use crate::part_impl::repo::mock_impl::{
+    Mock, MockContext, MockState, expected, now, unrecoverable,
+};
+use crate::result::{BaseError, BaseRest, accept};
 use crate::value::page::MAX_CHAPTER_PAGE_COUNT;
 
 // Internal implementation of `list_infos`.
@@ -147,5 +155,87 @@ fn page_from_manifest_entry(entry: &PageManifestEntry) -> PageInfo {
         proofread_unit_count: 0,
         created_at: time,
         updated_at: time,
+    }
+}
+
+impl Run<ListPageRawIdentInfos<'_>> for Mock {
+    // Shared application error type.
+    type Error = BaseError;
+
+    // Returns associations only for the requested pages.
+    async fn run(
+        &self,
+        oper: &ListPageRawIdentInfos<'_>,
+    ) -> BaseRest<Vec<PageRawIdentInfo>> {
+        //
+        let state = self.state.lock().unwrap();
+
+        accept(
+            state
+                .page_raw_idents
+                .values()
+                .filter(|info| oper.page_ids.contains(&info.page_id.as_str()))
+                .cloned()
+                .collect(),
+        )
+    }
+}
+
+impl Step<UpdatePageRawIdents<'_>, MockContext> for Mock {
+    // Matches the allocation transaction isolation requirement.
+    type Level = ReptRead;
+
+    // Shared application error type.
+    type Error = BaseError;
+
+    // Mutates the transaction-local associations with foreign-key parity.
+    async fn step(
+        &self,
+        context: &mut MockContext,
+        oper: &UpdatePageRawIdents<'_>,
+    ) -> BaseRest<()> {
+        //
+        for &(page_id, raw_ident) in oper.repl.idents {
+            //
+            match raw_ident {
+                //
+                None => {
+                    context.state.page_raw_idents.remove(page_id);
+                }
+
+                Some(value) => {
+                    //
+                    if !context
+                        .state
+                        .pages
+                        .iter()
+                        .any(|page| page.id == page_id)
+                    {
+                        return Err(unrecoverable(
+                            "raw filename references a missing page",
+                        ));
+                    }
+
+                    let timestamp = now();
+
+                    let info = context
+                        .state
+                        .page_raw_idents
+                        .entry(page_id.to_owned())
+                        .or_insert_with(|| PageRawIdentInfo {
+                            page_id: page_id.to_owned(),
+                            raw_ident: value.to_owned(),
+                            created_at: timestamp,
+                            updated_at: timestamp,
+                        });
+
+                    info.raw_ident = value.to_owned();
+
+                    info.updated_at = timestamp;
+                }
+            }
+        }
+
+        accept(())
     }
 }

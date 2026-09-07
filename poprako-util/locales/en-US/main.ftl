@@ -100,3 +100,9 @@ mail-chapter-progress-title = Your assigned comic "{ $comic_title }" chapter #{ 
 mail-chapter-progress-body = "{ $team_name }" - "{ $workset_name }" comic #{ $comic_index } "{ $comic_title }" chapter #{ $chapter_index } "{ $workflow }" is complete.
 mail-comic-archive-purged-title = Comic archives purged
 mail-comic-archive-purged-body = Expired comic archives were purged by the retention policy
+
+error-invalid-artwork-upload = Artwork size or file extension is invalid.
+error-invalid-page-raw-ident = Original page filename must be nonblank and contain no control characters or path separators.
+error-artwork-upload-role-required = A chapter typesetter, redrawer, or administrator assignment is required.
+error-stale-artwork-upload = The artwork upload version is missing or stale.
+error-artwork-unavailable = No artwork is currently available for this chapter.

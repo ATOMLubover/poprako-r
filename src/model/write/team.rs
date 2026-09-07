@@ -13,7 +13,7 @@ pub struct TeamEntry {
     pub description: String,
 }
 
-/// Mutable team profile fields replaced together.
+/// Mutable team profile fields updated together.
 pub struct TeamRepl {
     //
     /// The team identifier.

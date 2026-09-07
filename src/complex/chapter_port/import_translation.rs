@@ -9,7 +9,7 @@ use std::collections::{HashMap, HashSet};
 
 use poprako_util::i18n::{trl, trl_kv};
 
-use crate::complex::chapter_port::import::label_plus::parse_label_plus;
+use crate::complex::chapter_port::import_translation::label_plus::parse_label_plus;
 use crate::data::view::chapter_port::ChapterTranslationPortView;
 use crate::model::artifact::translation_import::{
     PageTranslationImport, UnitTranslationImport, UnitTranslationImportSource,
@@ -289,9 +289,9 @@ fn build_unit_create(
 }
 
 /// Chapter import parsing and payload merge rules.
-pub struct ChapterImportComplex;
+pub struct ChapterTranslationImportComplex;
 
-impl ChapterImportComplex {
+impl ChapterTranslationImportComplex {
     /// Parses `LabelPlus` text into chapter import pages.
     pub fn parse_label_plus(
         content: &str,

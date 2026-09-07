@@ -15,7 +15,7 @@ pub struct CommentInfo {
     pub team_id: String,
     /// The user who authored the comment.
     pub user_id: String,
-    /// The resolved user record, populated when the include option is set.
+    /// The resolved user record, populated when the include option is requested.
     pub user: Option<UserInfo>,
 
     /// The text body of the comment.

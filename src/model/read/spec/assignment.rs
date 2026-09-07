@@ -21,7 +21,7 @@ pub enum AssignmentListSpec {
         /// Foreign key scoping the listing to a single chapter.
         chapter_id: String,
         /// Optional role filter; only assignments with this role in their mask
-        /// are returned when set.
+        /// are returned when provided.
         role: Option<RoleField>,
         /// Flags controlling which optional associations are joined into results.
         incl_opt: Vec<AssignmentInclOpt>,
@@ -36,7 +36,7 @@ pub enum AssignmentListSpec {
         /// User identifier scoping the listing to assignments owned by this user.
         owner_id: String,
         /// Optional role filter; only assignments with this role in their mask
-        /// are returned when set.
+        /// are returned when provided.
         role: Option<RoleField>,
         /// Flags controlling which optional associations are joined into results.
         incl_opt: Vec<AssignmentInclOpt>,

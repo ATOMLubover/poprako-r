@@ -26,6 +26,10 @@ pub struct PageEntry {
 /// One page-image identity supplied to manifest planning.
 pub struct PageImageSpec {
     //
+    /// Complete original image filename, or no original identifier.
+    pub raw_ident: Option<String>,
+
+    //
     /// Existing page identifier, if the manifest retains a known page.
     pub page_id: Option<String>,
     /// Content-addressable hash of the page image file.
@@ -45,4 +49,10 @@ pub struct PageManifestEntry {
     pub chapter_id: String,
     /// Final ordinal position of the page within the chapter.
     pub index: usize,
+}
+
+/// Complete source filenames for the selected pages.
+pub struct PageRawIdentsRepl<'a> {
+    /// Paired page IDs and filenames; None means no original identifier.
+    pub idents: &'a [(&'a str, Option<&'a str>)],
 }

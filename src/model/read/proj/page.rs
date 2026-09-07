@@ -60,3 +60,18 @@ pub struct PageInfo {
     /// Timestamp when this page record was last modified.
     pub updated_at: OffsetDateTime,
 }
+
+/// One page's optional source filename record.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PageRawIdentInfo {
+    //
+    /// Stable page identifier.
+    pub page_id: String,
+    /// Complete original image filename.
+    pub raw_ident: String,
+
+    /// Time the association was created.
+    pub created_at: OffsetDateTime,
+    /// Time the association was last assigned.
+    pub updated_at: OffsetDateTime,
+}

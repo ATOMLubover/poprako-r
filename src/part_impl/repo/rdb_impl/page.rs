@@ -7,26 +7,40 @@ mod step_impl;
 #[cfg(all(test, feature = "rdb", feature = "repo_impl"))]
 pub mod tests;
 
+use diesel::prelude::{
+    ExpressionMethods as _, QueryDsl as _, SelectableHelper as _,
+};
+use diesel::upsert::excluded;
+use diesel_async::RunQueryDsl as _;
 use poprako_orchestra::{AtLeast, Level, Run, Step};
+use time::OffsetDateTime;
 use tracing::instrument;
 
-use crate::model::read::proj::page::{PageInfo, PageUnitScope};
+use crate::model::read::proj::page::{
+    PageInfo, PageRawIdentInfo, PageUnitScope,
+};
 use crate::part::nucl::ReptRead;
 use crate::part::repo::oper::page::{
     ApplyPageManifest, DeletePages, GetPageInfo, GetPageInfoExcluded,
     GetPageUnitScope, GetPageUnitScopeExcluded, ListEdittedDiffPageIds,
     ListFirstPageInfos, ListPageInfos, ListPageInfosExcluded,
-    SetPageUnitCountMetrics, ShiftPageIndexesTemporary,
+    ListPageRawIdentInfos, SetPageUnitCountMetrics, ShiftPageIndexesTemporary,
+    UpdatePageRawIdents,
 };
 use crate::part_impl::repo::HybRepo;
+use crate::part_impl::repo::rdb_impl::entity::page::{
+    PageRawIdentEntryRow, PageRawIdentInfoRow,
+};
 use crate::part_impl::repo::rdb_impl::page::step_impl::{
     apply_manifest, delete_by_chapter_id, delete_by_ids, get_info_by_id,
     get_info_excluded, get_unit_scope, get_unit_scope_excluded,
     list_editted_diff_page_ids, list_first_infos_by_chapter_ids, list_infos,
     list_infos_excluded, set_unit_counts, shift_indexes_temporary,
 };
-use crate::result::{BaseError, BaseRest};
+use crate::part_impl::repo::rdb_impl::schema::t_page_raw_ident;
+use crate::result::{BaseError, BaseRest, accept};
 use crate::shared::RdbContext;
+use crate::shared::result::diesel as map_diesel;
 
 impl Run<GetPageInfo<'_>> for HybRepo {
     // Use base error for page read orchestration through the query dispatcher.
@@ -320,5 +334,104 @@ where
                 delete_by_ids(context.conn(), ids).await
             }
         }
+    }
+}
+
+impl Run<ListPageRawIdentInfos<'_>> for HybRepo {
+    // Shared application error type.
+    type Error = BaseError;
+
+    // Loads only requested page associations in one query.
+    #[instrument(level = "info", skip_all)]
+    async fn run(
+        &self,
+        oper: &ListPageRawIdentInfos<'_>,
+    ) -> BaseRest<Vec<PageRawIdentInfo>> {
+        //
+        if oper.page_ids.is_empty() {
+            return accept(Vec::new());
+        }
+
+        let mut conn = self.rdb_core.get().await?;
+
+        let rows = t_page_raw_ident::table
+            .filter(t_page_raw_ident::f_page_id.eq_any(oper.page_ids))
+            .select(PageRawIdentInfoRow::as_select())
+            .load::<PageRawIdentInfoRow>(&mut *conn)
+            .await
+            .map_err(map_diesel)?;
+
+        accept(rows.into_iter().map(PageRawIdentInfo::from).collect())
+    }
+}
+
+impl<L> Step<UpdatePageRawIdents<'_>, RdbContext<L>> for HybRepo
+where
+    L: Level + Send + AtLeast<ReptRead>,
+{
+    // Allocation holds the owning chapter and page locks.
+    type Level = ReptRead;
+
+    // Shared application error type.
+    type Error = BaseError;
+
+    // Replaces optional source filenames in at most two statements.
+    #[instrument(level = "info", skip_all)]
+    async fn step(
+        &self,
+        context: &mut RdbContext<L>,
+        oper: &UpdatePageRawIdents<'_>,
+    ) -> BaseRest<()> {
+        //
+        let unnamed_ids = oper
+            .repl
+            .idents
+            .iter()
+            .filter(|(_, raw_ident)| raw_ident.is_none())
+            .map(|(page_id, _)| *page_id)
+            .collect::<Vec<_>>();
+
+        let entries = oper
+            .repl
+            .idents
+            .iter()
+            .filter_map(|(page_id, raw_ident)| {
+                //
+                Some(PageRawIdentEntryRow {
+                    f_page_id: page_id,
+                    f_raw_ident: (*raw_ident)?,
+                })
+            })
+            .collect::<Vec<_>>();
+
+        if !unnamed_ids.is_empty() {
+            //
+            diesel::delete(
+                t_page_raw_ident::table
+                    .filter(t_page_raw_ident::f_page_id.eq_any(&unnamed_ids)),
+            )
+            .execute(context.conn())
+            .await
+            .map_err(map_diesel)?;
+        }
+
+        if !entries.is_empty() {
+            //
+            diesel::insert_into(t_page_raw_ident::table)
+                .values(&entries)
+                .on_conflict(t_page_raw_ident::f_page_id)
+                .do_update()
+                .set((
+                    t_page_raw_ident::f_raw_ident
+                        .eq(excluded(t_page_raw_ident::f_raw_ident)),
+                    t_page_raw_ident::f_updated_at
+                        .eq(OffsetDateTime::now_utc()),
+                ))
+                .execute(context.conn())
+                .await
+                .map_err(map_diesel)?;
+        }
+
+        accept(())
     }
 }

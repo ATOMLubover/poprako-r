@@ -3,6 +3,7 @@ use super::*;
 
 use poprako_obj_dept::model::task::ObjTask;
 
+use crate::model::read::proj::page::PageRawIdentInfo;
 use crate::result::ExpectedVariant;
 use crate::test_util::assert_expected_variant;
 use crate::value::role::RoleField;
@@ -30,6 +31,16 @@ async fn admin_delete_removes_pages_objects_and_clears_chapter_counts() {
 
     let before = OffsetDateTime::now_utc();
 
+    mock.state.lock().unwrap().page_raw_idents.insert(
+        "page-1".into(),
+        PageRawIdentInfo {
+            page_id: "page-1".into(),
+            raw_ident: "source.png".into(),
+            created_at: before,
+            updated_at: before,
+        },
+    );
+
     delete(
         (&mock, &mock, &mock),
         page_token("user-1"),
@@ -42,6 +53,7 @@ async fn admin_delete_removes_pages_objects_and_clears_chapter_counts() {
     let chapter_info = &snapshot.chapters[0];
 
     assert!(snapshot.pages.is_empty());
+    assert!(snapshot.page_raw_idents.is_empty());
     assert_eq!(chapter_info.page_count, 0);
     assert_eq!(chapter_info.total_unit_count, 0);
     assert_eq!(chapter_info.translated_unit_count, 0);

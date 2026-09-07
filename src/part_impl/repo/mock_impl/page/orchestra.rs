@@ -384,6 +384,11 @@ impl<'a> Step<DeletePages<'a>, MockContext> for Mock {
                     .pages
                     .retain(|page_info| page_info.chapter_id != *chapter_id);
 
+                context
+                    .state
+                    .page_raw_idents
+                    .retain(|page_id, _| !ids.contains(page_id));
+
                 accept(())
             }
 
@@ -399,6 +404,11 @@ impl<'a> Step<DeletePages<'a>, MockContext> for Mock {
                     .state
                     .pages
                     .retain(|page_info| !ids.contains(&page_info.id));
+
+                context
+                    .state
+                    .page_raw_idents
+                    .retain(|page_id, _| !ids.contains(page_id));
 
                 accept(())
             }

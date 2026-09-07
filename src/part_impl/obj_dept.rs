@@ -1,5 +1,8 @@
 //! Total ObjDept composition.
 
+// Chapter artwork storage-key mapping.
+mod artwork;
+
 #[cfg(test)]
 mod mock_impl;
 
@@ -21,10 +24,13 @@ use poprako_rdb_core::RdbCore;
 use crate::implement_mock_obj_dept;
 
 use crate::complex::image::ImageComplex;
-use crate::part::obj_dept::{ComicCover, PageImage, TeamAvatar, UserAvatar};
+use crate::part::obj_dept::{
+    ChapterArtwork, ComicCover, PageImage, TeamAvatar, UserAvatar,
+};
 use crate::part_impl::obj_dept::r2_impl::R2ObjPool;
 use crate::part_impl::repo::rdb_impl::schema::{
-    t_comic_cover, t_obj_prom_task, t_page_image, t_team_avatar, t_user_avatar,
+    t_chapter_artwork, t_comic_cover, t_obj_prom_task, t_page_image,
+    t_team_avatar, t_user_avatar,
 };
 use crate::value::image::{
     ComicCoverKey, PageImageKey, TeamAvatarKey, UserAvatarKey,
@@ -120,6 +126,10 @@ rdb_obj_prom! {
 }
 
 objs_def! {
+    ChapterArtwork {
+        table: t_chapter_artwork,
+        topic: "chapter_artwork",
+    },
     PageImage {
         table: t_page_image,
         topic: "page_image",

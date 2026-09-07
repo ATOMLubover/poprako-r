@@ -665,6 +665,133 @@
         }
       }
     },
+    "/api/v1/chapters/{chapter_id}/artwork/alloc": {
+      "post": {
+        "tags": [
+          "chapter-port"
+        ],
+        "summary": "Allocates a direct chapter artwork upload; an available duplicate has no slot.",
+        "operationId": "alloc_artwork",
+        "parameters": [
+          {
+            "name": "chapter_id",
+            "in": "path",
+            "description": "Chapter ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AllocChapterArtworkInstr"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Current artwork version and optional PUT capability",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpBody_AllocChapterArtworkVal"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Chapter artwork role required"
+          },
+          "422": {
+            "description": "Invalid allocation or frozen chapter"
+          }
+        }
+      }
+    },
+    "/api/v1/chapters/{chapter_id}/artwork/export": {
+      "get": {
+        "tags": [
+          "chapter-port"
+        ],
+        "summary": "Returns the original object URL of the current available artwork.",
+        "operationId": "export_artwork",
+        "parameters": [
+          {
+            "name": "chapter_id",
+            "in": "path",
+            "description": "Chapter ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Artwork identity and original download URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpBody_ExportChapterArtworkVal"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Chapter export access required"
+          },
+          "422": {
+            "description": "Chapter artwork is unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/chapters/{chapter_id}/artwork/mark-uploaded": {
+      "post": {
+        "tags": [
+          "chapter-port"
+        ],
+        "summary": "Optimistically confirms artwork and atomically completes typesetting/redraw.",
+        "operationId": "mark_artwork_uploaded",
+        "parameters": [
+          {
+            "name": "chapter_id",
+            "in": "path",
+            "description": "Chapter ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkChapterArtworkUploadedInstr"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Current artwork confirmed and typesetting completed"
+          },
+          "403": {
+            "description": "Chapter artwork role required"
+          },
+          "422": {
+            "description": "Missing or stale artwork version, or frozen chapter"
+          }
+        }
+      }
+    },
     "/api/v1/chapters/{chapter_id}/assignment-invitations": {
       "get": {
         "tags": [
@@ -1012,7 +1139,7 @@
         ],
         "summary": "`GET /api/v1/chapters/{chapter_id}/translations/export` — export response body.",
         "description": "`format` selects one or both generated documents as a comma-separated value.",
-        "operationId": "export",
+        "operationId": "export_translation",
         "parameters": [
           {
             "name": "chapter_id",
@@ -1030,6 +1157,15 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "with_raw_ident",
+            "in": "query",
+            "description": "Use original filenames in LabelPlus; defaults to false",
+            "required": false,
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -1057,7 +1193,7 @@
         ],
         "summary": "`GET /api/v1/chapters/{chapter_id}/translations/export/download` — export as file download.",
         "description": "The downloaded JSON contains every document selected by `format`.",
-        "operationId": "export_download",
+        "operationId": "export_translation_download",
         "parameters": [
           {
             "name": "chapter_id",
@@ -1075,6 +1211,15 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "with_raw_ident",
+            "in": "query",
+            "description": "Use original filenames in LabelPlus; defaults to false",
+            "required": false,
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -1101,7 +1246,7 @@
           "chapter-port"
         ],
         "summary": "`POST /api/v1/chapters/{chapter_id}/translations/import` — import translations.",
-        "operationId": "import",
+        "operationId": "import_translation",
         "parameters": [
           {
             "name": "chapter_id",
@@ -4335,6 +4480,57 @@
   },
   "components": {
     "schemas": {
+      "AllocChapterArtworkInstr": {
+        "type": "object",
+        "description": "Request to allocate the chapter's single artwork file.",
+        "required": [
+          "artwork_hash",
+          "new_byte_len",
+          "ext"
+        ],
+        "properties": {
+          "artwork_hash": {
+            "$ref": "#/components/schemas/ArtworkHash",
+            "description": "Canonical Base64 SHA-256 identity of the exact uploaded bytes."
+          },
+          "ext": {
+            "type": "string",
+            "description": "File extension without a leading dot."
+          },
+          "new_byte_len": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Exact upload length, also bound into the PUT signature.",
+            "minimum": 0
+          }
+        }
+      },
+      "AllocChapterArtworkVal": {
+        "type": "object",
+        "description": "Chapter artwork allocation result, including the version on a deduplication hit.",
+        "required": [
+          "artwork_version"
+        ],
+        "properties": {
+          "artwork_version": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Current artwork generation to confirm.",
+            "minimum": 0
+          },
+          "slot": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ChapterArtworkUploadSlotView",
+                "description": "Absent when the requested content is already available."
+              }
+            ]
+          }
+        }
+      },
       "AllocChapterPagesInstr": {
         "type": "object",
         "description": "Input parameters for reserving all page images of a chapter.",
@@ -4436,6 +4632,13 @@
             "format": "int64",
             "description": "Size of the page image in bytes.",
             "minimum": 0
+          },
+          "raw_ident": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Complete original filename. Omission or null replaces it with no name."
           }
         }
       },
@@ -4634,6 +4837,10 @@
           }
         }
       },
+      "ArtworkHash": {
+        "type": "string",
+        "description": "SHA-256 identity using the same canonical Base64 encoding as image uploads."
+      },
       "AssignmentInclOpt": {
         "type": "string",
         "description": "Incl opts for assignment info queries.\n\nEach opt embeds additional related data into the returned\n`AssignmentInfoView`. Dotted opts implicitly pull in the segments before\nthe dot (e.g. `chapter.comic.workset.team` also embeds `chapter`,\n`chapter.comic`, and `chapter.comic.workset`).",
@@ -4764,6 +4971,30 @@
           }
         }
       },
+      "ChapterArtworkUploadSlotView": {
+        "type": "object",
+        "description": "A direct artwork upload capability.",
+        "required": [
+          "put_url",
+          "headers"
+        ],
+        "properties": {
+          "headers": {
+            "type": "object",
+            "description": "Headers bound into the upload signature.",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "put_url": {
+            "type": "string",
+            "description": "Presigned PUT URL."
+          }
+        }
+      },
       "ChapterInclOpt": {
         "type": "string",
         "description": "Incl opts for chapter info queries.\n\nEach opt embeds additional related data into the returned\n`ChapterInfoView`. Dotted opts implicitly pull in the segments before the\ndot (e.g. `comic.workset.team` also embeds `comic` and `comic.workset`).",
@@ -4874,6 +5105,24 @@
             "type": "integer",
             "format": "int64",
             "description": "Timestamp of last update, in Unix milliseconds."
+          }
+        }
+      },
+      "ChapterPageRawIdentVal": {
+        "type": "object",
+        "description": "One exported Page's original filename mapping.",
+        "required": [
+          "page_id",
+          "raw_ident"
+        ],
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "description": "Stable Page identifier."
+          },
+          "raw_ident": {
+            "type": "string",
+            "description": "Complete original image filename."
           }
         }
       },
@@ -5217,6 +5466,37 @@
           },
           {
             "type": "object",
+            "description": "Chapter artwork was successfully exported.",
+            "required": [
+              "data",
+              "kind"
+            ],
+            "properties": {
+              "data": {
+                "type": "object",
+                "description": "Chapter artwork was successfully exported.",
+                "required": [
+                  "artwork_version"
+                ],
+                "properties": {
+                  "artwork_version": {
+                    "type": "integer",
+                    "format": "int32",
+                    "description": "Exported artwork generation.",
+                    "minimum": 0
+                  }
+                }
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "artwork_exported"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
             "description": "A chapter workflow stage changed phase.",
             "required": [
               "data",
@@ -5306,7 +5586,8 @@
           "unit_edit",
           "translation_import",
           "translation_export",
-          "raw_provide_check"
+          "raw_provide_check",
+          "artwork_upload"
         ]
       },
       "ChapterWorkflowRecordStagePhaseView": {
@@ -5989,6 +6270,36 @@
           }
         }
       },
+      "ExportChapterArtworkVal": {
+        "type": "object",
+        "description": "Current available artwork and its direct object-storage download address.",
+        "required": [
+          "artwork_version",
+          "artwork_hash",
+          "ext",
+          "download_url"
+        ],
+        "properties": {
+          "artwork_hash": {
+            "$ref": "#/components/schemas/ArtworkHash",
+            "description": "Canonical Base64 SHA-256 identity supplied by the uploader."
+          },
+          "artwork_version": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Current available object generation.",
+            "minimum": 0
+          },
+          "download_url": {
+            "type": "string",
+            "description": "Original object URL; file bytes never pass through the API server."
+          },
+          "ext": {
+            "type": "string",
+            "description": "Original file suffix."
+          }
+        }
+      },
       "ExportChapterTranslationsVal": {
         "type": "object",
         "description": "Translation documents generated together by one chapter export.",
@@ -6010,6 +6321,16 @@
                 "description": "Native `PopRaKo` document, absent when that format was not selected."
               }
             ]
+          },
+          "raw_idents": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ChapterPageRawIdentVal"
+            },
+            "description": "Page-to-original-filename mappings, absent unless requested."
           }
         }
       },
@@ -6069,6 +6390,49 @@
               "$ref": "#/components/schemas/TermbaseTermView"
             },
             "description": "Portable terminology entries ordered deterministically."
+          }
+        }
+      },
+      "HttpBody_AllocChapterArtworkVal": {
+        "type": "object",
+        "description": "Success response body wrapping a usecase value.\n\nSerializes as the standard JSON success envelope. HTTP metadata such as\nstatus code, extra headers, and `Set-Cookie` values are not part of the JSON\nbody.",
+        "required": [
+          "code",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Application-level success code, 0 for normal success.",
+            "example": 0,
+            "minimum": 0
+          },
+          "data": {
+            "type": "object",
+            "description": "Chapter artwork allocation result, including the version on a deduplication hit.",
+            "required": [
+              "artwork_version"
+            ],
+            "properties": {
+              "artwork_version": {
+                "type": "integer",
+                "format": "int32",
+                "description": "Current artwork generation to confirm.",
+                "minimum": 0
+              },
+              "slot": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ChapterArtworkUploadSlotView",
+                    "description": "Absent when the requested content is already available."
+                  }
+                ]
+              }
+            }
           }
         }
       },
@@ -6950,6 +7314,53 @@
               "id": {
                 "type": "string",
                 "description": "Identifier of the newly created workset."
+              }
+            }
+          }
+        }
+      },
+      "HttpBody_ExportChapterArtworkVal": {
+        "type": "object",
+        "description": "Success response body wrapping a usecase value.\n\nSerializes as the standard JSON success envelope. HTTP metadata such as\nstatus code, extra headers, and `Set-Cookie` values are not part of the JSON\nbody.",
+        "required": [
+          "code",
+          "data"
+        ],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Application-level success code, 0 for normal success.",
+            "example": 0,
+            "minimum": 0
+          },
+          "data": {
+            "type": "object",
+            "description": "Current available artwork and its direct object-storage download address.",
+            "required": [
+              "artwork_version",
+              "artwork_hash",
+              "ext",
+              "download_url"
+            ],
+            "properties": {
+              "artwork_hash": {
+                "$ref": "#/components/schemas/ArtworkHash",
+                "description": "Canonical Base64 SHA-256 identity supplied by the uploader."
+              },
+              "artwork_version": {
+                "type": "integer",
+                "format": "int32",
+                "description": "Current available object generation.",
+                "minimum": 0
+              },
+              "download_url": {
+                "type": "string",
+                "description": "Original object URL; file bytes never pass through the API server."
+              },
+              "ext": {
+                "type": "string",
+                "description": "Original file suffix."
               }
             }
           }
@@ -9556,6 +9967,21 @@
           }
         }
       },
+      "MarkChapterArtworkUploadedInstr": {
+        "type": "object",
+        "description": "Confirmation of one exact current artwork generation.",
+        "required": [
+          "artwork_version"
+        ],
+        "properties": {
+          "artwork_version": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Version returned by allocation, including deduplicated allocation.",
+            "minimum": 0
+          }
+        }
+      },
       "MarkComicCoverUploadedInstr": {
         "type": "object",
         "description": "Request to confirm one allocated comic cover version.",
@@ -9878,6 +10304,13 @@
               "null"
             ],
             "description": "Existing page identifier, if updating an existing page."
+          },
+          "raw_ident": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Complete original filename. Omission or null replaces it with no name."
           }
         }
       },
@@ -11186,7 +11619,7 @@
     },
     {
       "name": "chapter-port",
-      "description": "Chapter translation import/export endpoints"
+      "description": "Chapter translation and artwork import/export endpoints"
     },
     {
       "name": "pages",

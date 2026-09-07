@@ -5,8 +5,8 @@ use std::sync::OnceLock;
 
 use time::OffsetDateTime;
 
-use crate::complex::chapter_port::export::ChapterExportComplex;
-use crate::complex::chapter_port::import::ChapterImportComplex;
+use crate::complex::chapter_port::export_translation::ChapterTranslationExportComplex;
+use crate::complex::chapter_port::import_translation::ChapterTranslationImportComplex;
 use crate::complex::comic_archive::ComicArchiveComplex;
 use crate::model::read::proj::assignment::AssignmentInfo;
 use crate::model::read::proj::chapter::ChapterInfo;
@@ -56,13 +56,15 @@ pub async fn prepare_archive(archive_input: ArchiveInput) -> bool {
 /// Benchmarks `LabelPlus` parsing with a repeated real-world import payload.
 #[must_use]
 pub fn parse_label_plus() -> bool {
-    ChapterImportComplex::parse_label_plus(label_plus_content()).is_ok()
+    //
+    ChapterTranslationImportComplex::parse_label_plus(label_plus_content())
+        .is_ok()
 }
 
 /// Benchmarks `PopRaKo` JSON parsing with a large generated project payload.
 #[must_use]
 pub fn parse_poprako() -> bool {
-    ChapterImportComplex::parse_poprako(poprako_content()).is_ok()
+    ChapterTranslationImportComplex::parse_poprako(poprako_content()).is_ok()
 }
 
 /// Benchmarks `LabelPlus` rendering for a large page-and-unit collection.
@@ -84,9 +86,10 @@ pub fn label_plus_export_input() -> LabelPlusExportInput {
 #[must_use]
 pub fn make_label_plus(label_plus_export_input: &LabelPlusExportInput) -> bool {
     //
-    !ChapterExportComplex::make_label_plus(
+    !ChapterTranslationExportComplex::make_label_plus(
         &label_plus_export_input.pages,
         &label_plus_export_input.units_by_page_id,
+        &std::collections::HashMap::new(),
         &std::collections::HashMap::new(),
     )
     .is_empty()

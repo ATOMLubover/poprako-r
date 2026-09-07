@@ -26,7 +26,31 @@ LabelPlus import accepts one leading UTF-8 BOM, LF or CRLF line endings,
 official and group-generated preamble spacing, and trailing spaces or tabs on
 structure lines. Translation text is kept without an overall trim. Page files
 are matched by page order; filenames are not matched to stored page images.
-Export continues to use three-digit filenames from `000` through `199`.
+Export uses three-digit filenames from `000` through `199` by default.
+Both translation export endpoints accept `with_raw_ident=true` to use each
+page's complete original filename in its LabelPlus image reference. A page
+without an original filename falls back to the existing index and image
+extension (or `jpg` when object metadata is absent). Original names are used
+verbatim, including extension and case; duplicate names are allowed. This
+option does not change the PopRaKo document, page ordering, or import matching.
+When requested, the export response also includes `raw_idents`, an ordered
+array of `{ page_id, raw_ident }` mappings for Pages with stored original
+filenames. The field is `null` when `with_raw_ident` is false.
+
+Chapter page allocation accepts `raw_ident` on each `pages` item, and single
+page-image allocation accepts the same optional string field. Both replace
+the stored value: `"raw_ident":"original 01.png"` supplies the complete
+filename, while omission or `"raw_ident":null` means no original identifier.
+When resubmitting a chapter manifest, include each filename that should
+remain associated with its matched page, even when no upload is needed.
+Blank names, control characters, and path separators are rejected. Names are
+stored with the resolved page ID in the allocation transaction even when no
+upload slot is needed. They take effect on allocation, not upload confirmation.
+
+Original filenames are removed in the publication transaction alongside source
+images. Removing pages, including manifest removal, archival, and subtree
+deletion, also removes their filenames. Reallocating a retained page updates its
+single filename record rather than keeping filename history.
 
 Unit indexes must start at one and be unique within each page. Coordinates must
 be finite, the bubble flag must be `1` or `2`, headers must be complete, the

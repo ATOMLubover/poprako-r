@@ -117,6 +117,13 @@ pub enum ChapterWorkflowRecordEventView {
         formats: ExportFormatSpec,
     },
 
+    /// Chapter artwork was successfully exported.
+    ArtworkExported {
+        /// Exported artwork generation.
+        #[serde(rename = "artwork_version")]
+        artwork_ver: u32,
+    },
+
     /// A chapter workflow stage changed phase.
     StageTransitioned {
         /// Changed workflow stage.
@@ -254,6 +261,9 @@ pub enum ChapterWorkflowRecordOriginView {
 
     /// Raw-provision completeness check.
     RawProvideCheck,
+
+    /// Client confirmation of the current artwork upload.
+    ArtworkUpload,
 }
 
 impl From<ChapterWorkflowRecordOrigin> for ChapterWorkflowRecordOriginView {
@@ -263,6 +273,8 @@ impl From<ChapterWorkflowRecordOrigin> for ChapterWorkflowRecordOriginView {
         match origin {
             //
             ChapterWorkflowRecordOrigin::Manual => Self::Manual,
+
+            ChapterWorkflowRecordOrigin::ArtworkUpload => Self::ArtworkUpload,
 
             ChapterWorkflowRecordOrigin::UnitEdit => Self::UnitEdit,
 
@@ -343,6 +355,10 @@ impl From<ChapterWorkflowRecordPayload> for ChapterWorkflowRecordEventView {
 
             ChapterWorkflowRecordPayload::TranslationExported { formats } => {
                 Self::TranslationExported { formats }
+            }
+
+            ChapterWorkflowRecordPayload::ArtworkExported { artwork_ver } => {
+                Self::ArtworkExported { artwork_ver }
             }
 
             ChapterWorkflowRecordPayload::StageTransitioned {

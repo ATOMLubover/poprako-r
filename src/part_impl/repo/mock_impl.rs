@@ -85,6 +85,10 @@ use crate::result::{BaseError, ExpectedVariant};
 /// In-memory state holding all mock repository records.
 #[cfg_attr(test, derive(Clone, Default))]
 pub struct MockState {
+    /// Original filenames keyed by the owning page identity.
+    pub page_raw_idents:
+        HashMap<String, crate::model::read::proj::page::PageRawIdentInfo>,
+
     //
     /// Mock storage for user records.
     pub users: Vec<UserInfo>,
@@ -145,6 +149,10 @@ pub struct MockState {
 #[cfg_attr(test, derive(Clone))]
 /// Immutable snapshot of the full mock state — used for asserting test outcomes.
 pub struct MockSnapshot {
+    /// Original filenames keyed by page identity.
+    pub page_raw_idents:
+        HashMap<String, crate::model::read::proj::page::PageRawIdentInfo>,
+
     //
     /// Snapshot of user records at the capture time.
     pub users: Vec<UserInfo>,
@@ -223,6 +231,7 @@ impl From<MockState> for MockSnapshot {
             assignments: state.assignments,
             assignment_invitations: state.assignment_invitations,
             pages: state.pages,
+            page_raw_idents: state.page_raw_idents,
             units: state.units,
             system_mails: state.system_mails,
             comic_archives: state.comic_archives,

@@ -11,13 +11,11 @@ use tracing::instrument;
 
 use poprako_obj_dept::ObjDeptView;
 use poprako_obj_dept::oper::ListObjMetas;
-use poprako_util::i18n::trl;
 
-use crate::complex::chapter_port::export::ChapterExportComplex;
-use crate::complex::chapter_port::perm::{
-    ChapterExportAccess, ChapterPortPermComplex,
+use crate::complex::chapter_port::export_translation::ChapterTranslationExportComplex;
+use crate::data::val::chapter_port::{
+    ChapterPageRawIdentVal, ExportChapterTranslationsVal,
 };
-use crate::data::val::chapter_port::ExportChapterTranslationsVal;
 use crate::data::view::chapter_port::ChapterTranslationPortView;
 use crate::data::view::page_port::PageTranslationPortView;
 use crate::data::view::unit_port::UnitTranslationPortView;
@@ -32,20 +30,18 @@ use crate::part::repo::chapter::ChapterRepo;
 use crate::part::repo::chapter_workflow_record::ChapterWorkflowRecordRepo;
 use crate::part::repo::comic::ComicRepo;
 use crate::part::repo::member::MemberRepo;
-use crate::part::repo::oper::assignment::FindAssignmentInfo;
 use crate::part::repo::oper::chapter::{
     GetChapterInfo, GetChapterInfoExcluded,
 };
 use crate::part::repo::oper::chapter_workflow_record::CreateChapterWorkflowRecords;
 use crate::part::repo::oper::comic::GetComicInfo;
-use crate::part::repo::oper::member::FindMemberInfo;
-use crate::part::repo::oper::page::ListPageInfos;
-use crate::part::repo::oper::team::ResolveTeamId;
+use crate::part::repo::oper::page::{ListPageInfos, ListPageRawIdentInfos};
 use crate::part::repo::oper::unit::ListUnitInfosByPageIds;
 use crate::part::repo::page::PageRepo;
 use crate::part::repo::team::TeamRepo;
 use crate::part::repo::unit::UnitRepo;
-use crate::result::{BaseError, BaseRest, ExpectedVariant, accept};
+use crate::result::{BaseError, BaseRest, accept};
+use crate::usecase::chapter_port::perm::ensure_export_access;
 use crate::usecase::stage::start_pending_stages;
 use crate::value::chapter::stage::Stage;
 use crate::value::chapter_port::ExportFormatSpec;
@@ -54,12 +50,17 @@ use crate::value::chapter_workflow_record::{
 };
 
 /// Exports one chapter in every selected translation format.
+#[expect(
+    clippy::too_many_lines,
+    reason = "coordinates chapter export assembly"
+)]
 #[instrument(level = "info", skip(nucl, repo, obj_dept, token), fields(actor_user_id = %token.user_id))]
-pub async fn export<N, C, R, O>(
+pub async fn export_translation<N, C, R, O>(
     (nucl, repo, obj_dept): (&N, &R, &O),
     token: UserToken,
     chapter_id: String,
     formats: ExportFormatSpec,
+    with_raw_ident: bool,
 ) -> BaseRest<ExportChapterTranslationsVal>
 where
     C: Context + Send,
@@ -78,7 +79,7 @@ where
     O: ObjDeptView<PageImage, C> + Sync,
 {
     let actor_is_chapter_assignee =
-        ensure_user_can_export::<C, R>(repo, &token, &chapter_id).await?;
+        ensure_export_access::<C, R>(repo, &token, &chapter_id).await?;
 
     let chapter_info = GetChapterInfo {
         id: &chapter_id,
@@ -110,6 +111,42 @@ where
     }
     .run_on(repo)
     .await?;
+
+    let raw_ident_infos = match with_raw_ident.then_some(()) {
+        //
+        Some(()) => {
+            //
+            ListPageRawIdentInfos {
+                page_ids: &page_ids,
+            }
+            .run_on(repo)
+            .await?
+        }
+
+        None => Vec::new(),
+    };
+
+    let raw_ident_by_page_id = raw_ident_infos
+        .iter()
+        .map(|info| (info.page_id.clone(), info.raw_ident.clone()))
+        .collect::<HashMap<_, _>>();
+
+    let raw_idents = with_raw_ident.then(|| {
+        //
+        page_infos
+            .iter()
+            .filter_map(|page_info| {
+                //
+                raw_ident_by_page_id.get(&page_info.id).map(|raw_ident| {
+                    //
+                    ChapterPageRawIdentVal {
+                        page_id: page_info.id.clone(),
+                        raw_ident: raw_ident.clone(),
+                    }
+                })
+            })
+            .collect()
+    });
 
     let mut page_views = Vec::with_capacity(page_infos.len());
 
@@ -176,18 +213,18 @@ where
         pages: page_views,
     };
 
-    let label_plus = formats.includes_label_plus().then(|| {
-        //
-        ChapterExportComplex::make_label_plus(
-            &page_infos,
-            &units_by_page_id,
-            &ext_by_page_id,
-        )
-    });
-
     let val = ExportChapterTranslationsVal {
-        label_plus,
+        label_plus: formats.includes_label_plus().then(|| {
+            //
+            ChapterTranslationExportComplex::make_label_plus(
+                &page_infos,
+                &units_by_page_id,
+                &ext_by_page_id,
+                &raw_ident_by_page_id,
+            )
+        }),
         poprako: formats.includes_poprako().then_some(poprako),
+        raw_idents,
     };
 
     persist_export_record(
@@ -291,73 +328,4 @@ where
         .await?;
 
     accept(())
-}
-
-// Authorizes chapter export and returns whether the caller is assigned to the chapter.
-async fn ensure_user_can_export<C, R>(
-    repo: &R,
-    token: &UserToken,
-    chapter_id: &str,
-) -> BaseRest<bool>
-where
-    C: Context,
-    R: TeamRepo<C> + MemberRepo<C> + AssignmentRepo<C> + Sync,
-{
-    let team_id = ResolveTeamId::Chapter { id: chapter_id }
-        .run_on(repo)
-        .await?;
-
-    let member_info = FindMemberInfo::UserTeam {
-        user_id: &token.user_id,
-        team_id: &team_id,
-    }
-    .run_on(repo)
-    .await?;
-
-    let assignment_info = FindAssignmentInfo::ChapterUser {
-        chapter_id,
-        user_id: &token.user_id,
-    }
-    .run_on(repo)
-    .await?;
-
-    match (member_info.as_ref(), assignment_info.as_ref()) {
-        //
-        (Some(member_info), assignment_info) => {
-            //
-            ChapterPortPermComplex::ensure_user_can_export(
-                &ChapterExportAccess::Member { member_info },
-            )?;
-
-            accept(assignment_info.is_some())
-        }
-
-        (None, Some(assignment_info)) => {
-            //
-            ChapterPortPermComplex::ensure_user_can_export(
-                &ChapterExportAccess::Assignee { assignment_info },
-            )?;
-
-            accept(true)
-        }
-
-        (None, None) => {
-            //
-            let err_message = trl("error-chapter-port-export-perm-required");
-
-            tracing::warn!(
-                err_variant = ?ExpectedVariant::Perm,
-                err_message = %err_message,
-                chapter_id = %chapter_id,
-                user_id = %token.user_id,
-                operation = "export",
-                "expected error: chapter port export permission denied",
-            );
-
-            Err(BaseError::Expected {
-                variant: ExpectedVariant::Perm,
-                message: err_message,
-            })
-        }
-    }
 }

@@ -26,6 +26,11 @@ pub struct AllocChapterPagesInstr {
 #[cfg_attr(feature = "swagger", derive(ToSchema))]
 pub struct PageImageInstr {
     //
+    /// Complete original filename. Omission or null replaces it with no name.
+    #[serde(default)]
+    pub raw_ident: Option<String>,
+
+    //
     /// Existing page identifier, if updating an existing page.
     pub page_id: Option<String>,
     /// Content hash of the page image.
@@ -43,6 +48,7 @@ impl From<PageImageInstr> for PageImageSpec {
     fn from(instr: PageImageInstr) -> Self {
         //
         Self {
+            raw_ident: instr.raw_ident,
             page_id: instr.page_id,
             image_hash: instr.image_hash,
             new_byte_len: instr.new_byte_len,
@@ -55,6 +61,11 @@ impl From<PageImageInstr> for PageImageSpec {
 #[derive(Debug, Deserialize)]
 #[cfg_attr(feature = "swagger", derive(ToSchema))]
 pub struct AllocPageImageInstr {
+    //
+    /// Complete original filename. Omission or null replaces it with no name.
+    #[serde(default)]
+    pub raw_ident: Option<String>,
+
     //
     /// Content hash of the page image to allocate.
     pub image_hash: ImageHash,

@@ -1,5 +1,7 @@
 //! View DTOs for chapter translation port import and export.
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "swagger")]
@@ -27,4 +29,15 @@ pub struct ChapterTranslationPortView {
 
     /// Pages and their translation units.
     pub pages: Vec<PageTranslationPortView>,
+}
+
+/// A direct artwork upload capability.
+#[derive(Debug, Serialize)]
+#[cfg_attr(feature = "swagger", derive(ToSchema))]
+pub struct ChapterArtworkUploadSlotView {
+    //
+    /// Presigned PUT URL.
+    pub put_url: String,
+    /// Headers bound into the upload signature.
+    pub headers: BTreeMap<String, String>,
 }

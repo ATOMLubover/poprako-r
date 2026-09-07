@@ -102,3 +102,9 @@ mail-chapter-progress-title = 你参加的漫画『{ $comic_title }』#{ $chapte
 mail-chapter-progress-body = 「{ $team_name }」-「{ $workset_name }」漫画 #{ $comic_index }『{ $comic_title }』章节 #{ $chapter_index }「{ $workflow }」已完成。
 mail-comic-archive-purged-title = 漫画归档已到期清理
 mail-comic-archive-purged-body = 系统已按保留策略清理漫画归档
+
+error-invalid-artwork-upload = 嵌字产物大小或文件扩展名不合法。
+error-invalid-page-raw-ident = 原始页面文件名不能为空白，且不能包含控制字符或路径分隔符。
+error-artwork-upload-role-required = 需要本章嵌字、修图或管理员权限。
+error-stale-artwork-upload = 嵌字产物上传版本不存在或已过期。
+error-artwork-unavailable = 当前章节没有可用的嵌字产物。

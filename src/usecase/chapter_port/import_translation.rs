@@ -8,7 +8,7 @@ use tracing::instrument;
 use poprako_util::i18n::trl;
 
 use crate::complex::chapter::ChapterComplex;
-use crate::complex::chapter_port::import::ChapterImportComplex;
+use crate::complex::chapter_port::import_translation::ChapterTranslationImportComplex;
 use crate::complex::chapter_port::perm::ChapterPortPermComplex;
 use crate::complex::unit::UnitComplex;
 use crate::data::instr::chapter_port::ImportChapterTranslationInstr;
@@ -52,7 +52,7 @@ use crate::value::unit::UnitEditPerm;
 
 /// Imports chapter translation content through the Unit edit pipeline.
 #[instrument(level = "info", skip(nucl, repo, token), fields(actor_user_id = %token.user_id))]
-pub async fn import<N, C, R>(
+pub async fn import_translation<N, C, R>(
     (nucl, repo): (&N, &R),
     token: UserToken,
     instr: ImportChapterTranslationInstr,
@@ -92,7 +92,7 @@ where
             .step_on(repo, context)
             .await?;
 
-            ChapterImportComplex::validate_page_count(
+            ChapterTranslationImportComplex::validate_page_count(
                 imported_pages.len(),
                 page_scopes.len(),
             )?;
@@ -224,7 +224,9 @@ where
         }
     })?;
 
-    ChapterPortPermComplex::ensure_user_can_import(&assignment_info)?;
+    ChapterPortPermComplex::ensure_user_can_import_translation(
+        &assignment_info,
+    )?;
 
     let edit_perm = UnitEditPerm {
         can_translate: assignment_info
@@ -242,11 +244,11 @@ where
     let imported_pages = match format {
         //
         TranslationFormat::LabelPlus => {
-            ChapterImportComplex::parse_label_plus(&instr.content)?
+            ChapterTranslationImportComplex::parse_label_plus(&instr.content)?
         }
 
         TranslationFormat::PopRaKo => {
-            ChapterImportComplex::parse_poprako(&instr.content)?
+            ChapterTranslationImportComplex::parse_poprako(&instr.content)?
         }
     };
 
@@ -536,7 +538,7 @@ fn build_page_edits(
         .iter()
         .map(|imported_unit| {
             //
-            ChapterImportComplex::build_unit_create(
+            ChapterTranslationImportComplex::build_unit_create(
                 imported_unit,
                 UnitComplex::gen_id(),
                 user_id,

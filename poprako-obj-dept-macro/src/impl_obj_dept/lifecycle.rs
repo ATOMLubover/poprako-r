@@ -73,6 +73,46 @@ pub fn expand(dept: &Ident, entry: &ObjEntry) -> TokenStream {
         }
 
         impl<'a, L, P, M> ::poprako_orchestra::Step<
+            ::poprako_obj_dept::oper::MarkObjUploaded<'a, #obj>,
+            ::poprako_rdb_core::RdbContext<L>,
+        > for #dept<P, M>
+        where
+            L: ::poprako_orchestra::Level + Send,
+            P: ::poprako_obj_dept::pool::ObjPool + ::core::marker::Sync,
+            M: ::poprako_obj_dept::prom::ObjProm + ::core::marker::Sync,
+        {
+            type Level = L;
+            type Error = ::poprako_obj_dept::rest::ObjDeptError;
+
+            async fn step(
+                &self,
+                context: &mut ::poprako_rdb_core::RdbContext<L>,
+                oper: &::poprako_obj_dept::oper::MarkObjUploaded<'a, #obj>,
+            ) -> ::poprako_obj_dept::rest::ObjDeptRest<bool> {
+                // SAFETY: This endpoint records the client's declaration for
+                // the exact current generation without synchronous remote I/O
+                // or content-hash verification. The delayed Check task remains
+                // responsible for reconciling remote presence.
+                let updated = #obj_module::mark_uploaded(
+                    context.conn(),
+                    &oper.key.id,
+                    oper.key.ver,
+                )
+                .await?;
+
+                match updated {
+                    0 => Ok(false),
+                    1 => Ok(true),
+                    _ => Err(
+                        ::poprako_obj_dept::rest::ObjDeptError::Unrecoverable {
+                            message: "object upload mark changed multiple rows".into(),
+                        },
+                    ),
+                }
+            }
+        }
+
+        impl<'a, L, P, M> ::poprako_orchestra::Step<
             ::poprako_obj_dept::oper::GenObjSlots<'a, #obj>,
             ::poprako_rdb_core::RdbContext<L>,
         > for #dept<P, M>

@@ -17,7 +17,7 @@ pub struct MemberInvitationInfo {
     /// The team the invitation grants access to.
     pub team_id: String,
 
-    /// The resolved inviter user record, populated when the include option is set.
+    /// The resolved inviter user record, populated when the include option is requested.
     pub invitor: Option<UserInfo>,
 
     /// The user who created and sent the invitation.

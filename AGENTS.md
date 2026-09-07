@@ -6,6 +6,8 @@ MUST run through GitHub Actions. Production SSH is allowed only from the
 protected GitHub Actions environment through the dedicated deployment account;
 maintainer machines must not run production deployment scripts.
 
+NEVER TOUCH schema.rs by hand!!!!!!!!!!!!!!!!!!!! The only way to change it is to use `just` scripts.
+
 Deployment preparation on a maintainer machine is CI-only by default. Do not
 run local Docker/image/release builds, local release helpers, or any deployment
 script unless the user explicitly requests that exact operation. Run the

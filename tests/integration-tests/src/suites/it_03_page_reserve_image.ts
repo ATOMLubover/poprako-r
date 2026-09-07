@@ -68,7 +68,11 @@ export async function runIt03Module(ctx: RunCtx): Promise<void> {
 
     // ---------- D1. batch reserve 8 pages on main ----------
 
-    const reserveVal = await reserveChapterPages(ctx.sadmin, mainChapterId, newPageManifest(8, "jpg"));
+    const sourceManifest = newPageManifest(8, "jpg");
+
+    sourceManifest[0]!.raw_ident = "原稿 01.PNG";
+
+    const reserveVal = await reserveChapterPages(ctx.sadmin, mainChapterId, sourceManifest);
 
     assert.assertEquals(reserveVal.pages.length, 8);
 
@@ -97,6 +101,7 @@ export async function runIt03Module(ctx: RunCtx): Promise<void> {
             page_id: page.page_id,
             image_hash: page.image_hash,
             ext: page.ext,
+            raw_ident: page.index === 0 ? "原稿 01.PNG" : null,
         })),
     );
 
@@ -266,6 +271,7 @@ export async function runIt03Module(ctx: RunCtx): Promise<void> {
                 page_id: page.id,
                 image_hash: page.image_hash!,
                 ext: page.ext!,
+                raw_ident: sourceManifest[page.index]?.raw_ident ?? null,
             })),
     );
 
@@ -285,6 +291,7 @@ export async function runIt03Module(ctx: RunCtx): Promise<void> {
             image_hash: page.image_hash!,
             new_byte_len: index === 0 ? 1 : undefined,
             ext: page.ext!,
+            raw_ident: sourceManifest[index]?.raw_ident ?? null,
         })),
     );
 
@@ -337,7 +344,7 @@ export async function runIt03Module(ctx: RunCtx): Promise<void> {
     const p2Id = pageIds[2]!;
     const p2OldVersion = pageVersions.get(p2Id)!;
 
-    const p2Reserve = await reservePageImage(ctx.sadmin, p2Id, "png");
+    const p2Reserve = await reservePageImage(ctx.sadmin, p2Id, "png", "replacement.JPG");
 
     assert.assertEquals(p2Reserve.page_id, p2Id);
     assert.assert(p2Reserve.slot?.put_url.startsWith("http"));

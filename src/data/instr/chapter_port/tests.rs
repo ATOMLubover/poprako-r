@@ -61,3 +61,23 @@ fn import_chapter_translation_instr_rejects_invalid_mode() {
 
     assert!(result.is_err());
 }
+
+// artwork_hash_validation(AllocChapterArtworkInstr)(negative): arbitrary strings and non-SHA-256 Base64 hashes are rejected at the transport boundary.
+#[test]
+fn artwork_hash_validation_rejects_invalid_identities() {
+    for hash in ["", "not-a-hash", "YQ==", "a".repeat(64).as_str()] {
+        let instr = serde_json::from_value::<AllocChapterArtworkInstr>(json!({
+            "artwork_hash": hash, "new_byte_len": 1024, "ext": "zip",
+        }));
+
+        assert!(instr.is_err());
+    }
+
+    let instr = serde_json::from_value::<AllocChapterArtworkInstr>(json!({
+        "artwork_hash": crate::value::artwork::ArtworkHash::new([7; 32]),
+        "new_byte_len": 1024, "ext": "zip",
+    }))
+    .unwrap();
+
+    assert_eq!(instr.artwork_hash.as_bytes(), &[7; 32]);
+}

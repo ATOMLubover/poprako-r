@@ -1,8 +1,10 @@
 use poprako_orchestra::Oper;
 
-use crate::model::read::proj::page::{PageInfo, PageUnitScope};
+use crate::model::read::proj::page::{
+    PageInfo, PageRawIdentInfo, PageUnitScope,
+};
 use crate::model::read::proj::unit::UnitCountMetrics;
-use crate::model::write::page::PageManifestEntry;
+use crate::model::write::page::{PageManifestEntry, PageRawIdentsRepl};
 
 /// Retrieves a single page's info by ID.
 #[derive(Oper)]
@@ -111,4 +113,20 @@ pub enum DeletePages<'a> {
         /// The page IDs to delete.
         ids: &'a [String],
     },
+}
+
+/// Reads source filename records for the selected pages.
+#[derive(Oper)]
+#[oper(output = Vec<PageRawIdentInfo>)]
+pub struct ListPageRawIdentInfos<'a> {
+    /// Page identifiers included in the export.
+    pub page_ids: &'a [&'a str],
+}
+
+/// Applies complete source filenames within the caller's transaction.
+#[derive(Oper)]
+#[oper(output = ())]
+pub struct UpdatePageRawIdents<'a> {
+    /// Paired filenames with distinct resolved page identifiers.
+    pub repl: &'a PageRawIdentsRepl<'a>,
 }

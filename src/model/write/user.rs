@@ -16,7 +16,7 @@ pub struct UserEntry {
     pub password_hash: String,
 }
 
-/// Mutable user profile fields replaced together.
+/// Mutable user profile fields updated together.
 pub struct UserInfoRepl {
     //
     /// The user identifier.
@@ -28,7 +28,7 @@ pub struct UserInfoRepl {
     pub nickname: String,
 }
 
-/// A user's credential fields replaced together.
+/// A user's credential fields updated together.
 pub struct UserCredsRepl {
     //
     /// The user identifier.

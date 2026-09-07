@@ -64,9 +64,22 @@ diesel::table! {
         f_reviewed_at -> Nullable<Timestamptz>,
         f_published_at -> Nullable<Timestamptz>,
         f_creator_id -> Text,
+        f_deleted_at -> Nullable<Timestamptz>,
         f_created_at -> Timestamptz,
         f_updated_at -> Timestamptz,
-        f_deleted_at -> Nullable<Timestamptz>,
+    }
+}
+
+diesel::table! {
+    t_chapter_artwork (f_id) {
+        f_id -> Text,
+        f_version -> Int8,
+        f_key -> Nullable<Text>,
+        f_is_uploaded -> Nullable<Bool>,
+        f_hash -> Nullable<Bytea>,
+        f_ext -> Nullable<Text>,
+        f_created_at -> Timestamptz,
+        f_updated_at -> Timestamptz,
     }
 }
 
@@ -95,9 +108,9 @@ diesel::table! {
         f_creator_id -> Text,
         f_last_active_at -> Timestamptz,
         f_archived_at -> Nullable<Timestamptz>,
+        f_deleted_at -> Nullable<Timestamptz>,
         f_created_at -> Timestamptz,
         f_updated_at -> Timestamptz,
-        f_deleted_at -> Nullable<Timestamptz>,
     }
 }
 
@@ -231,6 +244,15 @@ diesel::table! {
 }
 
 diesel::table! {
+    t_page_raw_ident (f_page_id) {
+        f_page_id -> Text,
+        f_raw_ident -> Text,
+        f_created_at -> Timestamptz,
+        f_updated_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
     t_system_mail (f_id) {
         f_id -> Text,
         f_receiver_id -> Text,
@@ -247,9 +269,9 @@ diesel::table! {
         f_name -> Text,
         f_description -> Nullable<Text>,
         f_workset_next_index -> Int4,
+        f_deleted_at -> Nullable<Timestamptz>,
         f_created_at -> Timestamptz,
         f_updated_at -> Timestamptz,
-        f_deleted_at -> Nullable<Timestamptz>,
     }
 }
 
@@ -347,9 +369,9 @@ diesel::table! {
         f_description -> Nullable<Text>,
         f_comic_count -> Int4,
         f_comic_next_index -> Int4,
+        f_deleted_at -> Nullable<Timestamptz>,
         f_created_at -> Timestamptz,
         f_updated_at -> Timestamptz,
-        f_deleted_at -> Nullable<Timestamptz>,
     }
 }
 
@@ -372,6 +394,7 @@ diesel::joinable!(t_member -> t_user (f_user_id));
 diesel::joinable!(t_member_invitation -> t_team (f_team_id));
 diesel::joinable!(t_member_invitation -> t_user (f_inviter_id));
 diesel::joinable!(t_page -> t_chapter (f_chapter_id));
+diesel::joinable!(t_page_raw_ident -> t_page (f_page_id));
 diesel::joinable!(t_system_mail -> t_user (f_receiver_id));
 diesel::joinable!(t_term -> t_termbase (f_termbase_id));
 diesel::joinable!(t_term -> t_user (f_creator_id));
@@ -386,6 +409,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     t_assignment,
     t_assignment_invitation,
     t_chapter,
+    t_chapter_artwork,
     t_chapter_workflow_record,
     t_comic,
     t_comic_archive,
@@ -397,6 +421,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     t_obj_prom_task,
     t_page,
     t_page_image,
+    t_page_raw_ident,
     t_system_mail,
     t_team,
     t_team_avatar,

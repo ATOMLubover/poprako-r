@@ -363,3 +363,125 @@ pub async fn page_roundtrip_uses_testcontainer(shared: RdbCore) {
         .ok()
         .unwrap();
 }
+
+/// Verifies original filename upsert, rollback, foreign keys, and page cascades.
+pub async fn raw_ident_roundtrip_uses_testcontainer(shared: RdbCore) {
+    use crate::model::write::page::PageRawIdentsRepl;
+    use crate::part::repo::oper::page::{
+        DeletePages, ListPageRawIdentInfos, UpdatePageRawIdents,
+    };
+
+    const RAW_PREFIX: &str = "rdb-test-page-raw-ident-";
+
+    test_shared::reset(&shared, RAW_PREFIX).await;
+
+    let fixture = test_shared::seed_page(&shared, RAW_PREFIX).await;
+
+    let repo = HybRepo::new(shared.clone());
+
+    let nucl = RdbNucl::<ReptRead>::new(shared.clone());
+
+    let page_id = fixture.page_entry.id.as_str();
+
+    let page_ids = [page_id];
+
+    let mut created_at = None;
+
+    for (repl, expected) in [
+        (Some("原稿 01.JPG"), Some("原稿 01.JPG")),
+        (Some("原稿 01.JPG"), Some("原稿 01.JPG")),
+        (Some("renamed.png"), Some("renamed.png")),
+        (None, None),
+        (None, None),
+    ] {
+        let repls = PageRawIdentsRepl {
+            idents: &[(page_id, repl)],
+        };
+
+        nucl.coord(async |context| {
+            repo.step(context, &UpdatePageRawIdents { repl: &repls })
+                .await
+        })
+        .await
+        .unwrap();
+
+        let infos = repo
+            .run(&ListPageRawIdentInfos {
+                page_ids: &page_ids,
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(
+            infos.as_slice().first().map(|info| info.raw_ident.as_str()),
+            expected
+        );
+
+        if let Some(info) = infos.as_slice().first() {
+            assert_eq!(
+                *created_at.get_or_insert(info.created_at),
+                info.created_at
+            );
+            assert!(info.updated_at >= info.created_at);
+        }
+    }
+
+    let repls = PageRawIdentsRepl {
+        idents: &[
+            (page_id, Some("rollback.png")),
+            ("missing-page", Some("invalid.png")),
+        ],
+    };
+
+    assert!(
+        nucl.coord(async |context| repo
+            .step(context, &UpdatePageRawIdents { repl: &repls })
+            .await)
+            .await
+            .is_err()
+    );
+    assert!(
+        repo.run(&ListPageRawIdentInfos {
+            page_ids: &page_ids
+        })
+        .await
+        .unwrap()
+        .is_empty()
+    );
+
+    let repls = PageRawIdentsRepl {
+        idents: &[(page_id, Some("delete.png"))],
+    };
+
+    nucl.coord(async |context| {
+        repo.step(context, &UpdatePageRawIdents { repl: &repls })
+            .await
+    })
+    .await
+    .unwrap();
+
+    let ids = [page_id.to_owned()];
+
+    nucl.coord(async |context| {
+        repo.step(context, &DeletePages::Ids { ids: &ids }).await
+    })
+    .await
+    .unwrap();
+
+    assert!(
+        repo.run(&ListPageRawIdentInfos {
+            page_ids: &page_ids
+        })
+        .await
+        .unwrap()
+        .is_empty()
+    );
+    assert!(
+        repo.run(&ListPageRawIdentInfos { page_ids: &[] })
+            .await
+            .unwrap()
+            .is_empty()
+    );
+
+    test_shared::cleanup(&shared, RAW_PREFIX).await.unwrap();
+}

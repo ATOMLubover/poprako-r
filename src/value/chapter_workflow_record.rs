@@ -42,6 +42,9 @@ pub enum ChapterWorkflowRecordKind {
     /// Translation content was successfully exported from a chapter.
     TranslationExported,
 
+    /// Chapter artwork was successfully exported.
+    ArtworkExported,
+
     /// A chapter workflow stage changed phase.
     StageTransitioned,
 }
@@ -70,6 +73,8 @@ impl ChapterWorkflowRecordKind {
 
             Self::TranslationExported => "translation-exported",
 
+            Self::ArtworkExported => "artwork-exported",
+
             Self::StageTransitioned => "stage-transitioned",
         }
     }
@@ -95,6 +100,9 @@ pub enum ChapterWorkflowRecordOrigin {
 
     /// A delayed raw-provision upload-completeness check completed the stage.
     RawProvideCheck,
+
+    /// Client confirmation of the current artwork upload.
+    ArtworkUpload,
 }
 
 /// Typed, immutable details attached to a workflow record.
@@ -162,6 +170,13 @@ pub enum ChapterWorkflowRecordPayload {
         formats: ExportFormatSpec,
     },
 
+    /// Summary of a successful artwork export.
+    ArtworkExported {
+        /// Exported artwork generation.
+        #[serde(rename = "artwork_version")]
+        artwork_ver: u32,
+    },
+
     /// One real workflow-stage phase transition.
     StageTransitioned {
         /// Changed stage.
@@ -209,6 +224,10 @@ impl ChapterWorkflowRecordPayload {
 
             Self::TranslationExported { .. } => {
                 ChapterWorkflowRecordKind::TranslationExported
+            }
+
+            Self::ArtworkExported { .. } => {
+                ChapterWorkflowRecordKind::ArtworkExported
             }
 
             Self::StageTransitioned { .. } => {

@@ -13,13 +13,14 @@ use crate::data::instr::chapter::UpdateChapterStageInstr;
 use crate::model::read::proj::assignment::AssignmentInfo;
 use crate::model::shared::user::UserToken;
 use crate::model::write::chapter_workflow_record::ChapterWorkflowRecordEntry;
+use crate::model::write::page::PageRawIdentsRepl;
 use crate::part::effect::event::Event;
 use crate::part::effect::event::chapter::{
     ChapterPublishedEvent, ChapterWorkflowCompletedEvent,
 };
 use crate::part::effect::{Develop, EffectEvent as _};
 use crate::part::nucl::ReptRead;
-use crate::part::obj_dept::PageImage;
+use crate::part::obj_dept::{ChapterArtwork, PageImage};
 use crate::part::repo::assignment::AssignmentRepo;
 use crate::part::repo::chapter::ChapterRepo;
 use crate::part::repo::chapter_workflow_record::ChapterWorkflowRecordRepo;
@@ -32,7 +33,7 @@ use crate::part::repo::oper::chapter::{
 };
 use crate::part::repo::oper::chapter_workflow_record::CreateChapterWorkflowRecords;
 use crate::part::repo::oper::comic::TouchComicLastActive;
-use crate::part::repo::oper::page::ListPageInfos;
+use crate::part::repo::oper::page::{ListPageInfos, UpdatePageRawIdents};
 use crate::part::repo::page::PageRepo;
 use crate::result::{BaseError, BaseRest, ExpectedVariant, accept};
 use crate::value::chapter::stage::{Stage, StageOper, StagePhase};
@@ -173,7 +174,7 @@ where
         + PageRepo<C>
         + Send
         + Sync,
-    O: ObjDept<PageImage, C> + Send + Sync,
+    O: ObjDept<ChapterArtwork, C> + ObjDept<PageImage, C> + Send + Sync,
     D: Develop + Send + Sync,
 {
     let stage = Stage::from(instr.stage);
@@ -246,7 +247,7 @@ where
                     && !was_published
                     && next_phase == StagePhase::Completed
                 {
-                    clean_uploaded_images(
+                    clear_chapter_files(
                         repo,
                         obj_dept,
                         context,
@@ -330,8 +331,8 @@ where
     )
 }
 
-// Clear uploaded page images and enqueue their object-storage deletions.
-async fn clean_uploaded_images<C, R, O>(
+// Clear chapter artwork and page images and defer their object-storage deletions.
+async fn clear_chapter_files<C, R, O>(
     repo: &R,
     obj_dept: &O,
     context: &mut C,
@@ -340,8 +341,13 @@ async fn clean_uploaded_images<C, R, O>(
 where
     C: Context,
     R: PageRepo<C> + Sync,
-    O: ObjDept<PageImage, C> + Sync,
+    O: ObjDept<ChapterArtwork, C> + ObjDept<PageImage, C> + Sync,
 {
+    ClearObjs::<ChapterArtwork>::new(&[chapter_id.to_owned()])
+        .step_on(obj_dept, context)
+        .await
+        .map_err(BaseError::from)?;
+
     let page_infos =
         ListPageInfos { chapter_id }.step_on(repo, context).await?;
 
@@ -353,7 +359,24 @@ where
     ClearObjs::<PageImage>::new(&page_ids)
         .step_on(obj_dept, context)
         .await
-        .map_err(BaseError::from)
+        .map_err(BaseError::from)?;
+
+    let raw_idents = page_ids
+        .iter()
+        .map(|page_id| (page_id.as_str(), None))
+        .collect::<Vec<_>>();
+
+    let raw_ident_repl = PageRawIdentsRepl {
+        idents: &raw_idents,
+    };
+
+    UpdatePageRawIdents {
+        repl: &raw_ident_repl,
+    }
+    .step_on(repo, context)
+    .await?;
+
+    accept(())
 }
 
 // Develops workflow completion and publication events after commit.

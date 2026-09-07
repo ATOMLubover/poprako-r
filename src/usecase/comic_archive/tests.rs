@@ -15,7 +15,7 @@ use crate::model::read::proj::assignment_invitation::AssignmentInvitationInfo;
 use crate::model::read::proj::chapter::ChapterInfo;
 use crate::model::read::proj::comic::ComicInfo;
 use crate::model::read::proj::member::MemberInfo;
-use crate::model::read::proj::page::PageInfo;
+use crate::model::read::proj::page::{PageInfo, PageRawIdentInfo};
 use crate::model::read::proj::unit::UnitInfo;
 use crate::model::read::proj::user::{UserCredential, UserInfo};
 use crate::model::read::proj::workset::WorksetInfo;
@@ -134,6 +134,16 @@ fn seed_archive_scope(mock: &Mock, member_roles: RoleMask) {
         updated_at: archived_at,
     });
 
+    mock.state.lock().unwrap().page_raw_idents.insert(
+        "page-1".into(),
+        PageRawIdentInfo {
+            page_id: "page-1".into(),
+            raw_ident: "source.png".into(),
+            created_at: archived_at,
+            updated_at: archived_at,
+        },
+    );
+
     mock.seed_page(PageInfo {
         id: "page-1".into(),
         chapter_id: "chapter-1".into(),
@@ -240,6 +250,7 @@ async fn archive_retains_comic_marker_queues_images_and_deletes_children() {
     assert!(snapshot.assignments.is_empty());
     assert!(snapshot.assignment_invitations.is_empty());
     assert!(snapshot.pages.is_empty());
+    assert!(snapshot.page_raw_idents.is_empty());
     assert!(snapshot.units.is_empty());
 
     assert_eq!(snapshot.worksets[0].comic_count, 7);
@@ -397,6 +408,7 @@ async fn archive_rejects_tombstoned_comic_without_writing_or_deleting() {
     assert!(snapshot.comic_archives.is_empty());
     assert_eq!(snapshot.chapters.len(), 1);
     assert_eq!(snapshot.pages.len(), 1);
+    assert_eq!(snapshot.page_raw_idents.len(), 1);
 
     assert_eq!(
         snapshot.objs["comic_cover"]["comic-1"]

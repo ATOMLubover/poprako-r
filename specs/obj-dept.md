@@ -12,7 +12,7 @@ key; callers treat `ObjKey` as opaque. This slice supports only durable Check
 and Delete work. Inventory scans and other recovery systems are out of scope.
 
 The registered object kinds are `PageImage`, `UserAvatar`, `TeamAvatar`, and
-`ComicCover`.
+`ComicCover`, and `ChapterArtwork`.
 
 ## Dependency direction
 
@@ -86,7 +86,7 @@ are forbidden in ObjDept.
 Operation structures expose ordinary associated constructors and keep their
 phantom marker fields private. Callers import and invoke the real operation
 type directly so rust-analyzer navigation reaches its definition; no operation
-construction macro is used. `MarkObjUploaded<B>` returns `bool`, bound as
+construction macro is used. `MarkObjUploaded<B>` supports both independent Run and transaction-scoped Step. It returns `bool`, bound as
 `marked` and handled at the immediate use-case boundary.
 
 `ObjSlotSpec` carries `id`, `hash`, `ext`, `content_type`, and `byte_len`.
@@ -108,10 +108,7 @@ that transaction. A future object kind that permits business-ID reuse must use
 ## Pool and durable tasks
 
 `ObjPool` directly exposes `gen_slot`, `gen_urls`, `has`, and `del`. It is
-payload-neutral. Every manifest marker declares an `ObjUrlProfile` statically:
-current image markers use `ImageThumbnail`, while a future Font marker can use
-`OriginOnly`. R2 receives that profile and never guesses rendition behavior
-from a namespace or extension.
+payload-neutral. Callers select original, optimized, and thumbnail URLs through `ObjUrlSpec`. Artwork exports select only the original URL; the R2 adapter does not infer image renditions from the file extension.
 
 `ObjProm` owns reset, global claim, completion, retry, and operator transitions.
 `ObjPromDefer<C>` records single or batched Check and Delete work inside the
@@ -202,7 +199,35 @@ attempt without consuming a failure budget.
 - multi-object lifecycle and task persistence use bounded batch statements;
 - Check/Delete work is isolated in `t_obj_prom_task`;
 - no image-specific pool or old unified-prom image handler remains;
-- all four existing object flows use ObjDept operations;
+- all image and chapter artwork flows use ObjDept operations;
 - all page-image upload paths can trigger automatic stage advancement;
 - full formatting, all-feature compilation, tests, custom linters, and schema
   regeneration pass.
+
+## Chapter artwork integration
+
+Each chapter owns one `ChapterArtwork` slot in `t_chapter_artwork`, registered
+in the same typed manifest and served by the existing object actor. Artwork
+keys use `chapter_artwork/{chapter_id}-{version}.{ext}`. The frontend packs
+and uploads the complete file directly; the API never transfers or parses its
+bytes. Uploads accept safe file extensions and canonical Base64 SHA-256
+identities, with an exact signed byte length bounded by
+`[artwork].chapter_artwork_limit` (MiB, default 512).
+
+`alloc_artwork` returns the current version even when deduplication produces
+no PUT slot. New content replaces the current version immediately. Export
+requires an available current object and returns its original public URL.
+Artwork does not request optimized or thumbnail image URLs.
+
+`mark_artwork_uploaded` locks the owning chapter and uses the transaction-scoped
+`MarkObjUploaded` operation. Availability, completion of `TypesetRedraw`, and
+its `ArtworkUpload` workflow record commit together. The workflow-completion
+event is emitted after commit only on a real transition. Repeated confirms do
+not repeat completion; a stale generation cannot confirm the current object.
+The delayed existence check can revoke availability without reverting the
+business stage.
+
+Publishing clears the artwork alongside page images in the publication
+transaction. Published chapters reject allocation and confirmation. Chapter
+deletion, hierarchy sweeping, and comic archival delete artwork associations
+and defer physical deletion through the existing durable task mechanism.

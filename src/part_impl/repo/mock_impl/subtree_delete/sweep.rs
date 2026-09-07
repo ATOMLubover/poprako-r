@@ -114,6 +114,10 @@ pub fn delete_chapter(state: &mut MockState, chapter_id: &str) {
 
     state.pages.retain(|info| !page_ids.contains(&info.id));
 
+    state
+        .page_raw_idents
+        .retain(|page_id, _| !page_ids.contains(page_id));
+
     state.chapters.retain(|info| info.id != chapter_id);
 
     state.deleted_chapter_ids.remove(chapter_id);

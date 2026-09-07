@@ -22,7 +22,7 @@ use crate::data::val::comic_archive::{
 };
 use crate::model::shared::user::UserToken;
 use crate::part::nucl::Serial;
-use crate::part::obj_dept::{ComicCover, PageImage};
+use crate::part::obj_dept::{ChapterArtwork, ComicCover, PageImage};
 use crate::part::repo::comic::ComicRepo;
 use crate::part::repo::comic_archive::ComicArchiveRepo;
 use crate::part::repo::member::MemberRepo;
@@ -136,7 +136,11 @@ where
         + TeamRepo<C>
         + Send
         + Sync,
-    O: ObjDept<ComicCover, C> + ObjDept<PageImage, C> + Send + Sync,
+    O: ObjDept<ChapterArtwork, C>
+        + ObjDept<ComicCover, C>
+        + ObjDept<PageImage, C>
+        + Send
+        + Sync,
 {
     let member_info = MemberLoader::load_info_from_comic(
         repo,
@@ -181,6 +185,13 @@ where
                 .step_on(obj_dept, context)
                 .await
                 .map_err(BaseError::from)?;
+
+            DeleteObjs::<ChapterArtwork>::new(
+                &comic_archive_entry.source_chapter_ids,
+            )
+            .step_on(obj_dept, context)
+            .await
+            .map_err(BaseError::from)?;
 
             CommitComicArchive {
                 entry: &comic_archive_entry,

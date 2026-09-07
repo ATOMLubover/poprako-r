@@ -129,8 +129,8 @@ immediately after it.
   the 15 explicitly grandfathered files.
   - If mandatory, add an automated check.
   - Split or explicitly waive the 15 files currently at or above 600 lines.
-  - The current largest file is `src/complex/chapter_port/import.rs` at 770
-    lines.
+  - Chapter translation parsing lives in `src/complex/chapter_port/import_translation.rs`
+    and its focused LabelPlus submodule.
 - [x] Keep the project-specific guard/match preference mandatory for changed
   code and document it in `CONTRIBUTING.md`.
   - In particular, decide whether `if ... else` is truly forbidden or merely

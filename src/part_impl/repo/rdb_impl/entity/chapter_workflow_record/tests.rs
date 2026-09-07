@@ -39,6 +39,7 @@ fn payloads_round_trip_through_rdb_storage_forms() {
         ChapterWorkflowRecordPayload::TranslationExported {
             formats: ExportFormatSpec::BOTH,
         },
+        ChapterWorkflowRecordPayload::ArtworkExported { artwork_ver: 7 },
         ChapterWorkflowRecordPayload::StageTransitioned {
             stage: Stage::Translate,
             previous_phase: StagePhase::Pending,
