@@ -13,7 +13,9 @@ use poprako_obj_dept::ObjDeptView;
 use poprako_obj_dept::oper::ListObjMetas;
 
 use crate::complex::chapter_port::export_translation::ChapterTranslationExportComplex;
-use crate::data::val::chapter_port::ExportChapterTranslationsVal;
+use crate::data::val::chapter_port::{
+    ChapterPageRawIdentVal, ExportChapterTranslationsVal,
+};
 use crate::data::view::chapter_port::ChapterTranslationPortView;
 use crate::data::view::page_port::PageTranslationPortView;
 use crate::data::view::unit_port::UnitTranslationPortView;
@@ -110,20 +112,41 @@ where
     .run_on(repo)
     .await?;
 
-    let raw_ident_by_page_id =
-        match (with_raw_ident, formats.includes_label_plus()) {
+    let raw_ident_infos = match with_raw_ident.then_some(()) {
+        //
+        Some(()) => {
             //
-            (true, true) => ListPageRawIdentInfos {
+            ListPageRawIdentInfos {
                 page_ids: &page_ids,
             }
             .run_on(repo)
             .await?
-            .into_iter()
-            .map(|info| (info.page_id, info.raw_ident))
-            .collect(),
+        }
 
-            _ => HashMap::new(),
-        };
+        None => Vec::new(),
+    };
+
+    let raw_ident_by_page_id = raw_ident_infos
+        .iter()
+        .map(|info| (info.page_id.clone(), info.raw_ident.clone()))
+        .collect::<HashMap<_, _>>();
+
+    let raw_idents = with_raw_ident.then(|| {
+        //
+        page_infos
+            .iter()
+            .filter_map(|page_info| {
+                //
+                raw_ident_by_page_id.get(&page_info.id).map(|raw_ident| {
+                    //
+                    ChapterPageRawIdentVal {
+                        page_id: page_info.id.clone(),
+                        raw_ident: raw_ident.clone(),
+                    }
+                })
+            })
+            .collect()
+    });
 
     let mut page_views = Vec::with_capacity(page_infos.len());
 
@@ -201,6 +224,7 @@ where
             )
         }),
         poprako: formats.includes_poprako().then_some(poprako),
+        raw_idents,
     };
 
     persist_export_record(

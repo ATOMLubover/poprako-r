@@ -387,6 +387,11 @@ export async function runIt05Module(ctx: RunCtx): Promise<void> {
     assert.assert(rawExports.label_plus?.includes(">>>>>>>>[replacement.JPG]<<<<<<<<"));
     assert.assert(rawExports.label_plus?.includes(">>>>>>>>[001.jpg]<<<<<<<<"));
     assert.assert(!mainLabelPlus.includes("原稿 01.PNG"));
+    assert.assertEquals(rawExports.raw_idents, [
+        { page_id: ctx.main.pageIds[0]!, raw_ident: "原稿 01.PNG" },
+        { page_id: ctx.main.pageIds[2]!, raw_ident: "replacement.JPG" },
+    ]);
+    assert.assertEquals(mainExports.raw_idents, null);
 
     const rawDownload = await ctx.sadmin.get(
         `/api/v1/chapters/${mainChapterId}/translations/export/download?format=poprako,label_plus&with_raw_ident=true`,

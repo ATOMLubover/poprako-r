@@ -436,4 +436,10 @@ export interface ChapterTranslationPortView {
 export interface ExportChapterTranslationsVal {
     label_plus: string | null;
     poprako: ChapterTranslationPortView | null;
+    raw_idents: ChapterPageRawIdentVal[] | null;
+}
+
+export interface ChapterPageRawIdentVal {
+    page_id: string;
+    raw_ident: string;
 }

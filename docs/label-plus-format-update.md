@@ -33,6 +33,9 @@ without an original filename falls back to the existing index and image
 extension (or `jpg` when object metadata is absent). Original names are used
 verbatim, including extension and case; duplicate names are allowed. This
 option does not change the PopRaKo document, page ordering, or import matching.
+When requested, the export response also includes `raw_idents`, an ordered
+array of `{ page_id, raw_ident }` mappings for Pages with stored original
+filenames. The field is `null` when `with_raw_ident` is false.
 
 Chapter page allocation accepts `raw_ident` on each `pages` item, and single
 page-image allocation accepts the same optional string field. Both replace

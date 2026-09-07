@@ -21,6 +21,19 @@ pub struct ExportChapterTranslationsVal {
     pub label_plus: Option<String>,
     /// Native `PopRaKo` document, absent when that format was not selected.
     pub poprako: Option<ChapterTranslationPortView>,
+    /// Page-to-original-filename mappings, absent unless requested.
+    pub raw_idents: Option<Vec<ChapterPageRawIdentVal>>,
+}
+
+/// One exported Page's original filename mapping.
+#[derive(Debug, Serialize)]
+#[cfg_attr(feature = "swagger", derive(ToSchema))]
+pub struct ChapterPageRawIdentVal {
+    //
+    /// Stable Page identifier.
+    pub page_id: String,
+    /// Complete original image filename.
+    pub raw_ident: String,
 }
 
 /// Summary returned after importing chapter translations.

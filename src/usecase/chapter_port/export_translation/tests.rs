@@ -228,6 +228,8 @@ async fn export_returns_both_formats_and_records_one_export() {
         Err(_) => panic!("expected export success"),
     };
 
+    assert!(exported.raw_idents.is_none());
+
     let poprako = exported.poprako.unwrap();
 
     assert_eq!(poprako.chapter_id, "chapter-1");
@@ -370,6 +372,16 @@ async fn export_raw_ident_is_opt_in_with_per_page_fallback_and_duplicate_names()
     .await
     .unwrap();
 
+    assert!(default_export.raw_idents.is_none());
+
+    let raw_idents = raw_export.raw_idents.as_ref().unwrap();
+
+    assert_eq!(raw_idents.len(), 1);
+
+    assert_eq!(raw_idents[0].page_id, "page-1");
+
+    assert_eq!(raw_idents[0].raw_ident, "原稿 01.JPG");
+
     assert!(
         default_export
             .label_plus
@@ -408,6 +420,14 @@ async fn export_raw_ident_is_opt_in_with_per_page_fallback_and_duplicate_names()
     .await
     .unwrap();
 
+    let duplicate_raw_idents = duplicate_export.raw_idents.as_ref().unwrap();
+
+    assert_eq!(duplicate_raw_idents.len(), 2);
+
+    assert_eq!(duplicate_raw_idents[0].page_id, "page-1");
+
+    assert_eq!(duplicate_raw_idents[1].page_id, "page-2");
+
     assert_eq!(
         duplicate_export
             .label_plus
@@ -430,4 +450,5 @@ async fn export_raw_ident_is_opt_in_with_per_page_fallback_and_duplicate_names()
 
     assert!(native_export.label_plus.is_none());
     assert!(native_export.poprako.is_some());
+    assert_eq!(native_export.raw_idents.unwrap().len(), 2);
 }

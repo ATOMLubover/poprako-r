@@ -5108,6 +5108,24 @@
           }
         }
       },
+      "ChapterPageRawIdentVal": {
+        "type": "object",
+        "description": "One exported Page's original filename mapping.",
+        "required": [
+          "page_id",
+          "raw_ident"
+        ],
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "description": "Stable Page identifier."
+          },
+          "raw_ident": {
+            "type": "string",
+            "description": "Complete original image filename."
+          }
+        }
+      },
       "ChapterStageInstr": {
         "type": "string",
         "description": "Input parameters for updating a chapter's workflow stage.\n\nEncodes a single operation on a specific stage, e.g. \"start translating\"\non the `translate` stage. The use case layer validates that the\ntransition is legal for the current stage phase before applying it.",
@@ -6272,6 +6290,16 @@
                 "description": "Native `PopRaKo` document, absent when that format was not selected."
               }
             ]
+          },
+          "raw_idents": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ChapterPageRawIdentVal"
+            },
+            "description": "Page-to-original-filename mappings, absent unless requested."
           }
         }
       },
