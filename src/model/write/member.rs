@@ -32,7 +32,7 @@ pub struct MemberRoleRepl {
     pub roles: RoleMask,
 }
 
-/// A cached member nickname replacement.
+/// An updated cached member nickname.
 pub struct MemberNicknameRepl {
     //
     /// The user whose memberships are being updated.

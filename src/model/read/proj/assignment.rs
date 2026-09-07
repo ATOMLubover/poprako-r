@@ -15,7 +15,7 @@ use crate::model::read::proj::chapter::ChapterInfo;
 use crate::model::read::proj::user::UserInfo;
 use crate::value::role::RoleMask;
 
-/// A chapter assignment record linking a user to a chapter with a set of
+/// A chapter assignment record linking a user to a chapter with a collection of
 /// workflow roles.
 ///
 /// The `roles` mask specifies which workflow roles the user holds for this

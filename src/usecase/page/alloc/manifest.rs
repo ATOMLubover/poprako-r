@@ -14,7 +14,7 @@ use crate::complex::chapter::ChapterComplex;
 use crate::complex::page::{PageComplex, manifest};
 use crate::model::read::proj::page::PageInfo;
 use crate::model::write::page::{
-    PageImageSpec, PageManifestEntry, PageRawIdentReplacement,
+    PageImageSpec, PageManifestEntry, PageRawIdentsRepl,
 };
 use crate::part::obj_dept::PageImage;
 use crate::part::prom::Prom;
@@ -29,8 +29,8 @@ use crate::part::repo::oper::chapter::{
 };
 use crate::part::repo::oper::comic::TouchComicLastActive;
 use crate::part::repo::oper::page::{
-    ApplyPageManifest, DeletePages, ListPageInfosExcluded, SetPageRawIdents,
-    ShiftPageIndexesTemporary,
+    ApplyPageManifest, DeletePages, ListPageInfosExcluded,
+    ShiftPageIndexesTemporary, UpdatePageRawIdents,
 };
 use crate::part::repo::page::PageRepo;
 use crate::result::{BaseError, BaseRest, ExpectedVariant, accept};
@@ -164,17 +164,18 @@ where
     .step_on(repo, context)
     .await?;
 
-    let raw_ident_replacements = manifest_entries
+    let raw_ident_repls = manifest_entries
         .iter()
         .zip(page_specs)
-        .map(|(entry, spec)| PageRawIdentReplacement {
-            page_id: entry.id.clone(),
-            raw_ident: spec.raw_ident.clone(),
-        })
+        .map(|(entry, spec)| (entry.id.as_str(), spec.raw_ident.as_deref()))
         .collect::<Vec<_>>();
 
-    SetPageRawIdents {
-        replacements: &raw_ident_replacements,
+    let raw_ident_repl = PageRawIdentsRepl {
+        idents: &raw_ident_repls,
+    };
+
+    UpdatePageRawIdents {
+        repl: &raw_ident_repl,
     }
     .step_on(repo, context)
     .await?;

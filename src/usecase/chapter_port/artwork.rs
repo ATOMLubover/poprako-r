@@ -181,12 +181,12 @@ where
 
             ChapterComplex::ensure_chapter_writable(&chapter_info)?;
 
-            let artwork_gen = ObjGen {
+            let artwork_key = ObjGen {
                 id: chapter_info.id.clone(),
                 ver: instr.artwork_ver,
             };
 
-            let marked = MarkObjUploaded::<ChapterArtwork>::new(&artwork_gen)
+            let marked = MarkObjUploaded::<ChapterArtwork>::new(&artwork_key)
                 .step_on(obj_dept, context)
                 .await
                 .map_err(BaseError::from)?;

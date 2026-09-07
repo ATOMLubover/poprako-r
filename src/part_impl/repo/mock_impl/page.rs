@@ -11,7 +11,9 @@ use crate::model::read::proj::page::{
 use crate::model::read::proj::unit::UnitCountMetrics;
 use crate::model::write::page::PageManifestEntry;
 use crate::part::nucl::ReptRead;
-use crate::part::repo::oper::page::{ListPageRawIdentInfos, SetPageRawIdents};
+use crate::part::repo::oper::page::{
+    ListPageRawIdentInfos, UpdatePageRawIdents,
+};
 use crate::part_impl::repo::mock_impl::{
     Mock, MockContext, MockState, expected, now, unrecoverable,
 };
@@ -179,7 +181,7 @@ impl Run<ListPageRawIdentInfos<'_>> for Mock {
     }
 }
 
-impl Step<SetPageRawIdents<'_>, MockContext> for Mock {
+impl Step<UpdatePageRawIdents<'_>, MockContext> for Mock {
     // Matches the allocation transaction isolation requirement.
     type Level = ReptRead;
 
@@ -190,15 +192,15 @@ impl Step<SetPageRawIdents<'_>, MockContext> for Mock {
     async fn step(
         &self,
         context: &mut MockContext,
-        oper: &SetPageRawIdents<'_>,
+        oper: &UpdatePageRawIdents<'_>,
     ) -> BaseRest<()> {
         //
-        for replacement in oper.replacements {
+        for &(page_id, raw_ident) in oper.repl.idents {
             //
-            match &replacement.raw_ident {
+            match raw_ident {
                 //
                 None => {
-                    context.state.page_raw_idents.remove(&replacement.page_id);
+                    context.state.page_raw_idents.remove(page_id);
                 }
 
                 Some(value) => {
@@ -207,7 +209,7 @@ impl Step<SetPageRawIdents<'_>, MockContext> for Mock {
                         .state
                         .pages
                         .iter()
-                        .any(|page| page.id == replacement.page_id)
+                        .any(|page| page.id == page_id)
                     {
                         return Err(unrecoverable(
                             "raw filename references a missing page",
@@ -219,15 +221,15 @@ impl Step<SetPageRawIdents<'_>, MockContext> for Mock {
                     let info = context
                         .state
                         .page_raw_idents
-                        .entry(replacement.page_id.clone())
+                        .entry(page_id.to_owned())
                         .or_insert_with(|| PageRawIdentInfo {
-                            page_id: replacement.page_id.clone(),
-                            raw_ident: value.clone(),
+                            page_id: page_id.to_owned(),
+                            raw_ident: value.to_owned(),
                             created_at: timestamp,
                             updated_at: timestamp,
                         });
 
-                    info.raw_ident.clone_from(value);
+                    info.raw_ident = value.to_owned();
 
                     info.updated_at = timestamp;
                 }

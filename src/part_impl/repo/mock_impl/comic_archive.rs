@@ -354,6 +354,10 @@ fn commit(
             .contains(&page_info.chapter_id)
     });
 
+    context.state.page_raw_idents.retain(|page_id, _| {
+        !comic_archive_entry.source_page_ids.contains(page_id)
+    });
+
     context.state.chapters.retain(|chapter_info| {
         //
         !comic_archive_entry

@@ -44,11 +44,11 @@ pub struct ComicInfo {
     /// The user who created this comic record.
     pub creator_id: String,
 
-    /// The resolved workset record, populated when the include option is set.
+    /// The resolved workset record, populated when the include option is requested.
     pub workset: Option<WorksetInfo>,
     /// The resolved team record for the owning workset, populated when requested.
     pub team: Option<TeamInfo>,
-    /// The resolved creator user record, populated when the include option is set.
+    /// The resolved creator user record, populated when the include option is requested.
     pub creator: Option<UserInfo>,
 
     /// Timestamp of the most recent activity on any chapter under this comic.

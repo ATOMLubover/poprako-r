@@ -4,7 +4,7 @@ use crate::model::read::proj::page::{
     PageInfo, PageRawIdentInfo, PageUnitScope,
 };
 use crate::model::read::proj::unit::UnitCountMetrics;
-use crate::model::write::page::{PageManifestEntry, PageRawIdentReplacement};
+use crate::model::write::page::{PageManifestEntry, PageRawIdentsRepl};
 
 /// Retrieves a single page's info by ID.
 #[derive(Oper)]
@@ -123,10 +123,10 @@ pub struct ListPageRawIdentInfos<'a> {
     pub page_ids: &'a [&'a str],
 }
 
-/// Replaces source filenames within the allocation transaction.
+/// Applies complete source filenames within the caller's transaction.
 #[derive(Oper)]
 #[oper(output = ())]
-pub struct SetPageRawIdents<'a> {
-    /// Replacement values with distinct resolved page identifiers.
-    pub replacements: &'a [PageRawIdentReplacement],
+pub struct UpdatePageRawIdents<'a> {
+    /// Paired filenames with distinct resolved page identifiers.
+    pub repl: &'a PageRawIdentsRepl<'a>,
 }

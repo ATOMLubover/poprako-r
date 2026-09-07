@@ -434,3 +434,41 @@ async fn manifest_failure_rolls_back_raw_ident_assignment() {
     assert_eq!(snapshot.pages[0].id, "page-1");
     assert_eq!(snapshot.objs["page_image"]["page-1"].version, 1);
 }
+
+#[tokio::test]
+async fn repeated_reallocation_does_not_retain_obsolete_raw_idents() {
+    let mock = Mock::new();
+
+    seed_manifest_scope(&mock, 0);
+
+    for hash in 1..=16 {
+        let mut page = manifest_page(None, hash, Some(4096), ImageExt::Png);
+
+        page.raw_ident = Some(format!("source-{hash}.png"));
+
+        let allocated = alloc_manifest(&mock, vec![page]).await.unwrap();
+
+        let snapshot = mock.snapshot();
+
+        assert_eq!(snapshot.pages.len(), 1);
+        assert_eq!(snapshot.page_raw_idents.len(), 1);
+        assert!(
+            snapshot
+                .page_raw_idents
+                .contains_key(&allocated.pages[0].page_id)
+        );
+    }
+
+    assert!(alloc_manifest(&mock, vec![]).await.is_err());
+
+    assert_eq!(mock.snapshot().page_raw_idents.len(), 1);
+
+    alloc_manifest(&mock, vec![manifest_page(None, 16, None, ImageExt::Png)])
+        .await
+        .unwrap();
+
+    let snapshot = mock.snapshot();
+
+    assert_eq!(snapshot.pages.len(), 1);
+    assert!(snapshot.page_raw_idents.is_empty());
+}

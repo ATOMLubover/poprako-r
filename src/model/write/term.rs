@@ -54,6 +54,6 @@ pub struct TermUpsertPlan {
     /// New terminology entries to insert.
     pub entries: Vec<TermEntry>,
 
-    /// Existing terminology entries to replace.
+    /// Existing terminology entries to update.
     pub updates: Vec<TermRepl>,
 }

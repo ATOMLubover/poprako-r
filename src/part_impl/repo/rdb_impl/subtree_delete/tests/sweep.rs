@@ -4,6 +4,8 @@ use super::*;
 
 use tokio::sync::oneshot;
 
+use crate::part_impl::repo::rdb_impl::schema::t_page_raw_ident;
+
 pub async fn run(shared: RdbCore) {
     removes_a_complete_workset_subtree(&shared).await;
     explicit_comic_claim_does_not_short_circuit_on_chapter(&shared).await;
@@ -67,6 +69,19 @@ async fn removes_a_complete_workset_subtree(shared: &RdbCore) {
     )
     .await;
 
+    {
+        let mut conn = shared.get().await.unwrap();
+
+        diesel::sql_query(
+            "INSERT INTO t_page_raw_ident (f_page_id, f_raw_ident) \
+             SELECT f_id, 'source.png' FROM t_page WHERE f_id LIKE $1",
+        )
+        .bind::<diesel::sql_types::Text, _>(format!("{PREFIX}%"))
+        .execute(&mut conn)
+        .await
+        .unwrap();
+    }
+
     mark_and_sweep_workset(shared, &workset_id).await;
 
     let mut conn = shared.get().await.unwrap();
@@ -85,6 +100,15 @@ async fn removes_a_complete_workset_subtree(shared: &RdbCore) {
 
     assert_eq!(remaining_pages, 0);
     assert_eq!(remaining_units, 0);
+
+    let remaining_raw_idents = t_page_raw_ident::table
+        .filter(t_page_raw_ident::f_page_id.like(format!("{PREFIX}%")))
+        .count()
+        .get_result::<i64>(&mut conn)
+        .await
+        .unwrap();
+
+    assert_eq!(remaining_raw_idents, 0);
 
     test_shared::cleanup(shared, PREFIX).await.unwrap();
 }

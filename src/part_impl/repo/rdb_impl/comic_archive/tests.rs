@@ -20,7 +20,7 @@ use crate::part::repo::oper::comic_archive::{
 use crate::part_impl::nucl::rdb_impl::RdbNucl;
 use crate::part_impl::repo::HybRepo;
 use crate::part_impl::repo::rdb_impl::schema::{
-    t_chapter, t_comic, t_comic_archive, t_page, t_workset,
+    t_chapter, t_comic, t_comic_archive, t_page, t_page_raw_ident, t_workset,
 };
 use crate::part_impl::repo::rdb_impl::test_shared;
 use crate::result::{BaseError, ExpectedVariant};
@@ -35,6 +35,19 @@ pub async fn comic_archive_roundtrip_uses_testcontainer(shared: RdbCore) {
     test_shared::reset(&shared, PREFIX).await;
 
     let page_fixture = test_shared::seed_page(&shared, PREFIX).await;
+
+    {
+        let mut conn = shared.get().await.unwrap();
+
+        diesel::insert_into(t_page_raw_ident::table)
+            .values((
+                t_page_raw_ident::f_page_id.eq(&page_fixture.page_entry.id),
+                t_page_raw_ident::f_raw_ident.eq("source.png"),
+            ))
+            .execute(&mut conn)
+            .await
+            .unwrap();
+    }
 
     let repo = HybRepo::new(shared.clone());
 
@@ -224,6 +237,16 @@ pub async fn comic_archive_roundtrip_uses_testcontainer(shared: RdbCore) {
     );
 
     assert_eq!(workset_comic_count_after, workset_comic_count_before);
+
+    assert_eq!(
+        t_page_raw_ident::table
+            .filter(t_page_raw_ident::f_page_id.eq(&page_fixture.page_entry.id))
+            .count()
+            .get_result::<i64>(&mut conn)
+            .await
+            .unwrap(),
+        0
+    );
 
     diesel::delete(
         t_comic_archive::table

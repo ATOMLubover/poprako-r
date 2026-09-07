@@ -155,9 +155,9 @@ code = "FBD011"
 message = "'previous' is forbidden — use 'prev' instead"
 
 [[forbidden-identifiers.words]]
-word = "replacement"
+word = "replace"
 code = "FBD012"
-message = "'replacement' is forbidden — use 'repl' instead"
+message = "'replace' is forbidden — it is reserved for model layer"
 
 [[forbidden-identifiers.words]]
 word = "outcome"

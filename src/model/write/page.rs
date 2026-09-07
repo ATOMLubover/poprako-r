@@ -51,11 +51,8 @@ pub struct PageManifestEntry {
     pub index: usize,
 }
 
-/// Replacement original filename for one resolved page.
-pub struct PageRawIdentReplacement {
-    //
-    /// Stable page identifier after manifest matching.
-    pub page_id: String,
-    /// Complete source filename; None replaces any existing association.
-    pub raw_ident: Option<String>,
+/// Complete source filenames for the selected pages.
+pub struct PageRawIdentsRepl<'a> {
+    /// Paired page IDs and filenames; None means no original identifier.
+    pub idents: &'a [(&'a str, Option<&'a str>)],
 }

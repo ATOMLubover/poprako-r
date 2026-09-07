@@ -26,9 +26,9 @@ pub struct MemberInfo {
     /// The team this membership belongs to.
     pub team_id: String,
 
-    /// The resolved user record, populated when the include option is set.
+    /// The resolved user record, populated when the include option is requested.
     pub user: Option<UserInfo>,
-    /// The resolved team record, populated when the include option is set.
+    /// The resolved team record, populated when the include option is requested.
     pub team: Option<TeamInfo>,
 
     /// Bitmask of roles and perms assigned to this member within the team.

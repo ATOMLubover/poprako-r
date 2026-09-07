@@ -24,8 +24,8 @@ use crate::part::repo::oper::page::{
     ApplyPageManifest, DeletePages, GetPageInfo, GetPageInfoExcluded,
     GetPageUnitScope, GetPageUnitScopeExcluded, ListEdittedDiffPageIds,
     ListFirstPageInfos, ListPageInfos, ListPageInfosExcluded,
-    ListPageRawIdentInfos, SetPageRawIdents, SetPageUnitCountMetrics,
-    ShiftPageIndexesTemporary,
+    ListPageRawIdentInfos, SetPageUnitCountMetrics, ShiftPageIndexesTemporary,
+    UpdatePageRawIdents,
 };
 use crate::part_impl::repo::HybRepo;
 use crate::part_impl::repo::rdb_impl::entity::page::{
@@ -365,7 +365,7 @@ impl Run<ListPageRawIdentInfos<'_>> for HybRepo {
     }
 }
 
-impl<L> Step<SetPageRawIdents<'_>, RdbContext<L>> for HybRepo
+impl<L> Step<UpdatePageRawIdents<'_>, RdbContext<L>> for HybRepo
 where
     L: Level + Send + AtLeast<ReptRead>,
 {
@@ -380,24 +380,26 @@ where
     async fn step(
         &self,
         context: &mut RdbContext<L>,
-        oper: &SetPageRawIdents<'_>,
+        oper: &UpdatePageRawIdents<'_>,
     ) -> BaseRest<()> {
         //
         let unnamed_ids = oper
-            .replacements
+            .repl
+            .idents
             .iter()
-            .filter(|replacement| replacement.raw_ident.is_none())
-            .map(|replacement| replacement.page_id.as_str())
+            .filter(|(_, raw_ident)| raw_ident.is_none())
+            .map(|(page_id, _)| *page_id)
             .collect::<Vec<_>>();
 
         let entries = oper
-            .replacements
+            .repl
+            .idents
             .iter()
-            .filter_map(|replacement| {
+            .filter_map(|(page_id, raw_ident)| {
                 //
                 Some(PageRawIdentEntryRow {
-                    f_page_id: &replacement.page_id,
-                    f_raw_ident: replacement.raw_ident.as_deref()?,
+                    f_page_id: page_id,
+                    f_raw_ident: (*raw_ident)?,
                 })
             })
             .collect::<Vec<_>>();

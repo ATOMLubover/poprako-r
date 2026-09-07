@@ -25,8 +25,8 @@ pub struct AnnouncementRepl {
     /// Identifier of the announcement to update.
     pub id: String,
 
-    /// Replacement headline text.
+    /// Updated headline text.
     pub title: String,
-    /// Replacement body content.
+    /// Updated body content.
     pub content: String,
 }

@@ -366,9 +366,9 @@ pub async fn page_roundtrip_uses_testcontainer(shared: RdbCore) {
 
 /// Verifies original filename upsert, rollback, foreign keys, and page cascades.
 pub async fn raw_ident_roundtrip_uses_testcontainer(shared: RdbCore) {
-    use crate::model::write::page::PageRawIdentReplacement;
+    use crate::model::write::page::PageRawIdentsRepl;
     use crate::part::repo::oper::page::{
-        DeletePages, ListPageRawIdentInfos, SetPageRawIdents,
+        DeletePages, ListPageRawIdentInfos, UpdatePageRawIdents,
     };
 
     const RAW_PREFIX: &str = "rdb-test-page-raw-ident-";
@@ -387,26 +387,20 @@ pub async fn raw_ident_roundtrip_uses_testcontainer(shared: RdbCore) {
 
     let mut created_at = None;
 
-    for (replacement, expected) in [
-        (Some("原稿 01.JPG".into()), Some("原稿 01.JPG")),
-        (Some("原稿 01.JPG".into()), Some("原稿 01.JPG")),
-        (Some("renamed.png".into()), Some("renamed.png")),
+    for (repl, expected) in [
+        (Some("原稿 01.JPG"), Some("原稿 01.JPG")),
+        (Some("原稿 01.JPG"), Some("原稿 01.JPG")),
+        (Some("renamed.png"), Some("renamed.png")),
         (None, None),
         (None, None),
     ] {
-        let replacements = [PageRawIdentReplacement {
-            page_id: page_id.into(),
-            raw_ident: replacement,
-        }];
+        let repls = PageRawIdentsRepl {
+            idents: &[(page_id, repl)],
+        };
 
         nucl.coord(async |context| {
-            repo.step(
-                context,
-                &SetPageRawIdents {
-                    replacements: &replacements,
-                },
-            )
-            .await
+            repo.step(context, &UpdatePageRawIdents { repl: &repls })
+                .await
         })
         .await
         .unwrap();
@@ -432,25 +426,16 @@ pub async fn raw_ident_roundtrip_uses_testcontainer(shared: RdbCore) {
         }
     }
 
-    let replacements = [
-        PageRawIdentReplacement {
-            page_id: page_id.into(),
-            raw_ident: Some("rollback.png".into()),
-        },
-        PageRawIdentReplacement {
-            page_id: "missing-page".into(),
-            raw_ident: Some("invalid.png".into()),
-        },
-    ];
+    let repls = PageRawIdentsRepl {
+        idents: &[
+            (page_id, Some("rollback.png")),
+            ("missing-page", Some("invalid.png")),
+        ],
+    };
 
     assert!(
         nucl.coord(async |context| repo
-            .step(
-                context,
-                &SetPageRawIdents {
-                    replacements: &replacements
-                }
-            )
+            .step(context, &UpdatePageRawIdents { repl: &repls })
             .await)
             .await
             .is_err()
@@ -464,19 +449,13 @@ pub async fn raw_ident_roundtrip_uses_testcontainer(shared: RdbCore) {
         .is_empty()
     );
 
-    let replacements = [PageRawIdentReplacement {
-        page_id: page_id.into(),
-        raw_ident: Some("delete.png".into()),
-    }];
+    let repls = PageRawIdentsRepl {
+        idents: &[(page_id, Some("delete.png"))],
+    };
 
     nucl.coord(async |context| {
-        repo.step(
-            context,
-            &SetPageRawIdents {
-                replacements: &replacements,
-            },
-        )
-        .await
+        repo.step(context, &UpdatePageRawIdents { repl: &repls })
+            .await
     })
     .await
     .unwrap();

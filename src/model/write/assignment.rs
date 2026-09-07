@@ -13,7 +13,7 @@ use crate::value::role::RoleMask;
 
 /// The data needed to insert a new assignment row.
 ///
-/// The `roles` mask specifies the initial set of roles.
+/// The `roles` mask specifies the initial roles.
 #[cfg_attr(test, derive(Clone))]
 pub struct AssignmentEntry {
     //
@@ -29,13 +29,13 @@ pub struct AssignmentEntry {
     pub roles: RoleMask,
 }
 
-/// Complete replacement of an assignment's role mask.
+/// Mutable assignment role mask.
 #[cfg_attr(test, derive(Clone))]
 pub struct AssignmentRoleRepl {
     //
-    /// Unique identifier of the assignment whose roles are being replaced.
+    /// Unique identifier of the assignment whose roles are being updated.
     pub id: String,
 
-    /// Replacement role mask.
+    /// Updated role mask.
     pub roles: RoleMask,
 }

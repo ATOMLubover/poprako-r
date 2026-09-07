@@ -44,6 +44,11 @@ Blank names, control characters, and path separators are rejected. Names are
 stored with the resolved page ID in the allocation transaction even when no
 upload slot is needed. They take effect on allocation, not upload confirmation.
 
+Original filenames are removed in the publication transaction alongside source
+images. Removing pages, including manifest removal, archival, and subtree
+deletion, also removes their filenames. Reallocating a retained page updates its
+single filename record rather than keeping filename history.
+
 Unit indexes must start at one and be unique within each page. Coordinates must
 be finite, the bubble flag must be `1` or `2`, headers must be complete, the
 document may contain at most 200 pages, and each page may contain at most 100

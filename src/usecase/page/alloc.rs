@@ -24,7 +24,7 @@ use crate::data::instr::page::{AllocChapterPagesInstr, AllocPageImageInstr};
 use crate::data::val::page::{AllocChapterPagesVal, AllocatedPageVal};
 use crate::data::view::image::ImageUploadSlotView;
 use crate::model::shared::user::UserToken;
-use crate::model::write::page::{PageImageSpec, PageRawIdentReplacement};
+use crate::model::write::page::{PageImageSpec, PageRawIdentsRepl};
 use crate::part::nucl::ReptRead;
 use crate::part::obj_dept::PageImage;
 use crate::part::prom::Prom;
@@ -38,7 +38,7 @@ use crate::part::repo::comic::ComicRepo;
 use crate::part::repo::oper::assignment::FindAssignmentInfo;
 use crate::part::repo::oper::chapter::GetChapterInfoExcluded;
 use crate::part::repo::oper::page::{
-    GetPageInfo, GetPageInfoExcluded, SetPageRawIdents,
+    GetPageInfo, GetPageInfoExcluded, UpdatePageRawIdents,
 };
 use crate::part::repo::page::PageRepo;
 use crate::result::{BaseError, BaseRest, ExpectedVariant, accept};
@@ -113,7 +113,7 @@ where
     accept(AllocChapterPagesVal { pages })
 }
 
-/// Allocates a replacement image generation for one page.
+/// Allocates an image generation for one page.
 #[instrument(level = "info", skip(nucl, repo, prom, obj_dept, image_config, token), fields(actor_user_id = %token.user_id))]
 pub async fn alloc_image<N, C, R, P, O>(
     (nucl, repo, prom, obj_dept, image_config): (&N, &R, &P, &O, &ImageConfig),
@@ -181,13 +181,12 @@ where
                 .await
                 .map_err(BaseError::from)?;
 
-            let raw_ident_replacement = PageRawIdentReplacement {
-                page_id: id.clone(),
-                raw_ident: instr.raw_ident,
+            let raw_ident_repl = PageRawIdentsRepl {
+                idents: &[(id.as_str(), instr.raw_ident.as_deref())],
             };
 
-            SetPageRawIdents {
-                replacements: std::slice::from_ref(&raw_ident_replacement),
+            UpdatePageRawIdents {
+                repl: &raw_ident_repl,
             }
             .step_on(repo, context)
             .await?;

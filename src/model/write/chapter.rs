@@ -27,7 +27,7 @@ pub struct ChapterEntry {
     /// Foreign key identifying the parent comic.
     pub comic_id: String,
 
-    /// Whether the new chapter should be set as the active chapter immediately.
+    /// Whether the new chapter should become the active chapter immediately.
     pub is_pinned: bool,
     /// Ordinal position assigned to the new chapter within the comic.
     pub index: usize,

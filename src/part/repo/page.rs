@@ -6,8 +6,8 @@ use crate::part::repo::oper::page::{
     ApplyPageManifest, DeletePages, GetPageInfo, GetPageInfoExcluded,
     GetPageUnitScope, GetPageUnitScopeExcluded, ListEdittedDiffPageIds,
     ListFirstPageInfos, ListPageInfos, ListPageInfosExcluded,
-    ListPageRawIdentInfos, SetPageRawIdents, SetPageUnitCountMetrics,
-    ShiftPageIndexesTemporary,
+    ListPageRawIdentInfos, SetPageUnitCountMetrics, ShiftPageIndexesTemporary,
+    UpdatePageRawIdents,
 };
 use crate::result::BaseError;
 
@@ -24,7 +24,7 @@ use crate::result::BaseError;
         for<'a> ListEdittedDiffPageIds<'a>,
     ),
     step(
-        for<'a> SetPageRawIdents<'a>,
+        for<'a> UpdatePageRawIdents<'a>,
         for<'a> GetPageInfo<'a>,
         for<'a> GetPageUnitScope<'a>,
         for<'a> ListPageInfos<'a>,

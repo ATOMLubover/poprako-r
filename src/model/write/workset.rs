@@ -26,6 +26,6 @@ pub struct WorksetRepl {
     pub id: String,
     /// Updated human-readable workset name.
     pub name: String,
-    /// Updated description, set to `None` to clear.
+    /// Updated description; `None` means no description.
     pub description: Option<String>,
 }

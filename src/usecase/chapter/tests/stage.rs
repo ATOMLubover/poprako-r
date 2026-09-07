@@ -5,7 +5,7 @@ use poprako_obj_dept::model::meta::ObjMeta;
 use poprako_obj_dept::model::task::ObjTask;
 use time::OffsetDateTime;
 
-use crate::model::read::proj::page::PageInfo;
+use crate::model::read::proj::page::{PageInfo, PageRawIdentInfo};
 use crate::part_impl::repo::mock_impl::MockObjRecord;
 use crate::value::chapter::stage::{StageOper, StagePhase};
 use crate::value::chapter_workflow_record::{
@@ -201,6 +201,16 @@ async fn update_stage_publish_enqueues_page_image_delete() {
         updated_at: created_at,
     });
 
+    mock.state.lock().unwrap().page_raw_idents.insert(
+        "page-1".into(),
+        PageRawIdentInfo {
+            page_id: "page-1".into(),
+            raw_ident: "source.png".into(),
+            created_at,
+            updated_at: created_at,
+        },
+    );
+
     let key = ObjKey {
         id: "page-1".into(),
         ver: 1,
@@ -241,6 +251,8 @@ async fn update_stage_publish_enqueues_page_image_delete() {
     let snapshot = mock.snapshot();
 
     assert!(snapshot.objs["page_image"]["page-1"].meta.is_none());
+    assert!(snapshot.page_raw_idents.is_empty());
+    assert_eq!(snapshot.pages.len(), 1);
     assert!(snapshot.obj_tasks.iter().any(|(_, task)| {
         matches!(task, ObjTask::Delete { key } if key.id == "page-1")
     }));

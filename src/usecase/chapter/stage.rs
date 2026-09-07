@@ -13,6 +13,7 @@ use crate::data::instr::chapter::UpdateChapterStageInstr;
 use crate::model::read::proj::assignment::AssignmentInfo;
 use crate::model::shared::user::UserToken;
 use crate::model::write::chapter_workflow_record::ChapterWorkflowRecordEntry;
+use crate::model::write::page::PageRawIdentsRepl;
 use crate::part::effect::event::Event;
 use crate::part::effect::event::chapter::{
     ChapterPublishedEvent, ChapterWorkflowCompletedEvent,
@@ -32,7 +33,7 @@ use crate::part::repo::oper::chapter::{
 };
 use crate::part::repo::oper::chapter_workflow_record::CreateChapterWorkflowRecords;
 use crate::part::repo::oper::comic::TouchComicLastActive;
-use crate::part::repo::oper::page::ListPageInfos;
+use crate::part::repo::oper::page::{ListPageInfos, UpdatePageRawIdents};
 use crate::part::repo::page::PageRepo;
 use crate::result::{BaseError, BaseRest, ExpectedVariant, accept};
 use crate::value::chapter::stage::{Stage, StageOper, StagePhase};
@@ -358,7 +359,24 @@ where
     ClearObjs::<PageImage>::new(&page_ids)
         .step_on(obj_dept, context)
         .await
-        .map_err(BaseError::from)
+        .map_err(BaseError::from)?;
+
+    let raw_idents = page_ids
+        .iter()
+        .map(|page_id| (page_id.as_str(), None))
+        .collect::<Vec<_>>();
+
+    let raw_ident_repl = PageRawIdentsRepl {
+        idents: &raw_idents,
+    };
+
+    UpdatePageRawIdents {
+        repl: &raw_ident_repl,
+    }
+    .step_on(repo, context)
+    .await?;
+
+    accept(())
 }
 
 // Develops workflow completion and publication events after commit.

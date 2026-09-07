@@ -50,9 +50,9 @@ pub enum UnitEdit {
         /// Three-state successor pointer patch.
         next_id: Patch<String>,
 
-        /// Optional speech-bubble flag replacement.
+        /// Optional updated speech-bubble flag.
         is_bubble: Option<bool>,
-        /// Optional coordinate replacement.
+        /// Optional updated coordinate.
         coord: Option<UnitCoord>,
 
         /// Three-state translation patch.
