@@ -184,6 +184,12 @@ export type ChapterWorkflowRecordEventView =
         };
     }
     | {
+        kind: "artwork_exported";
+        data: {
+            artwork_version: number;
+        };
+    }
+    | {
         kind: "stage_transitioned";
         data: {
             stage:
@@ -200,7 +206,8 @@ export type ChapterWorkflowRecordEventView =
                 | "unit_edit"
                 | "translation_import"
                 | "translation_export"
-                | "raw_provide_check";
+                | "raw_provide_check"
+                | "artwork_upload";
         };
     };
 

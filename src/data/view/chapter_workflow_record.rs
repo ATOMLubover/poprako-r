@@ -117,6 +117,13 @@ pub enum ChapterWorkflowRecordEventView {
         formats: ExportFormatSpec,
     },
 
+    /// Chapter artwork was successfully exported.
+    ArtworkExported {
+        /// Exported artwork generation.
+        #[serde(rename = "artwork_version")]
+        artwork_ver: u32,
+    },
+
     /// A chapter workflow stage changed phase.
     StageTransitioned {
         /// Changed workflow stage.
@@ -348,6 +355,10 @@ impl From<ChapterWorkflowRecordPayload> for ChapterWorkflowRecordEventView {
 
             ChapterWorkflowRecordPayload::TranslationExported { formats } => {
                 Self::TranslationExported { formats }
+            }
+
+            ChapterWorkflowRecordPayload::ArtworkExported { artwork_ver } => {
+                Self::ArtworkExported { artwork_ver }
             }
 
             ChapterWorkflowRecordPayload::StageTransitioned {

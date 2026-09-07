@@ -187,8 +187,8 @@ async fn mark(mock: &Mock, version: u32) -> BaseRest<()> {
 }
 
 async fn export(mock: &Mock, user: &str) -> BaseRest<ExportChapterArtworkVal> {
-    export_artwork::<MockContext, _, _>(
-        (mock, mock),
+    export_artwork::<_, MockContext, _, _>(
+        (mock, mock, mock),
         token(user),
         "chapter-1".into(),
     )
@@ -241,6 +241,17 @@ async fn artwork_completes_once_from_pending_and_active() {
         assert!(exported.download_url.contains("chapter_artwork/chapter-1-"));
 
         assert!(!exported.download_url.contains("thumbnail"));
+
+        let snapshot = mock.snapshot();
+
+        assert_eq!(snapshot.chapter_workflow_records.len(), 2);
+
+        assert!(matches!(
+            snapshot.chapter_workflow_records[1].payload,
+            ChapterWorkflowRecordPayload::ArtworkExported {
+                artwork_ver,
+            } if artwork_ver == allocation.artwork_ver
+        ));
 
         let duplicate = allocate(&mock, 1).await.unwrap();
 

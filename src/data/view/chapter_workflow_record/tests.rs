@@ -107,6 +107,15 @@ fn workflow_record_view_preserves_each_typed_event() {
             }),
         ),
         (
+            ChapterWorkflowRecordPayload::ArtworkExported { artwork_ver: 7 },
+            json!({
+                "kind": "artwork_exported",
+                "data": {
+                    "artwork_version": 7,
+                },
+            }),
+        ),
+        (
             ChapterWorkflowRecordPayload::StageTransitioned {
                 stage: Stage::Translate,
                 previous_phase: StagePhase::Pending,

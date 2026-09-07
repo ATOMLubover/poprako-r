@@ -67,6 +67,13 @@ pub enum ArchivedChapterWorkflowRecordDetail<'a> {
         formats: ExportFormatSpec,
     },
 
+    /// Exported artwork generation.
+    ArtworkExported {
+        /// Exported artwork generation.
+        #[serde(rename = "artwork_version")]
+        artwork_ver: u32,
+    },
+
     /// Workflow-stage phase transition.
     StageTransitioned {
         /// Changed workflow stage.
@@ -138,6 +145,13 @@ impl<'a> From<&'a ChapterWorkflowRecordPayload>
 
             ChapterWorkflowRecordPayload::TranslationExported { formats } => {
                 Self::TranslationExported { formats: *formats }
+            }
+
+            ChapterWorkflowRecordPayload::ArtworkExported { artwork_ver } => {
+                //
+                Self::ArtworkExported {
+                    artwork_ver: *artwork_ver,
+                }
             }
 
             ChapterWorkflowRecordPayload::StageTransitioned {

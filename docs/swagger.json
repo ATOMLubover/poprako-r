@@ -5466,6 +5466,37 @@
           },
           {
             "type": "object",
+            "description": "Chapter artwork was successfully exported.",
+            "required": [
+              "data",
+              "kind"
+            ],
+            "properties": {
+              "data": {
+                "type": "object",
+                "description": "Chapter artwork was successfully exported.",
+                "required": [
+                  "artwork_version"
+                ],
+                "properties": {
+                  "artwork_version": {
+                    "type": "integer",
+                    "format": "int32",
+                    "description": "Exported artwork generation.",
+                    "minimum": 0
+                  }
+                }
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "artwork_exported"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
             "description": "A chapter workflow stage changed phase.",
             "required": [
               "data",

@@ -113,6 +113,10 @@ fn encode_payload(payload: &ChapterWorkflowRecordPayload) -> serde_json::Value {
             json!({ "formats": formats })
         }
 
+        ChapterWorkflowRecordPayload::ArtworkExported { artwork_ver } => {
+            json!({ "artwork_version": artwork_ver })
+        }
+
         ChapterWorkflowRecordPayload::StageTransitioned {
             stage,
             previous_phase,
@@ -172,6 +176,8 @@ fn decode_payload(
         }
 
         ChapterWorkflowRecordKind::TranslationExported => &["formats"][..],
+
+        ChapterWorkflowRecordKind::ArtworkExported => &["artwork_version"][..],
 
         ChapterWorkflowRecordKind::StageTransitioned => {
             &["stage", "previous_phase", "next_phase", "origin"][..]

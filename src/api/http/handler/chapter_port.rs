@@ -244,10 +244,15 @@ pub async fn export_artwork(
 ) -> HttpResult<ExportChapterArtworkVal> {
     //
     usecase::chapter_port::artwork::export_artwork::<
+        _,
         RdbContext<ReptRead>,
         HybRepo,
         _,
-    >((harn.repo(), harn.obj_dept()), user_token, chapter_id)
+    >(
+        (harn.nucl().rept_read(), harn.repo(), harn.obj_dept()),
+        user_token,
+        chapter_id,
+    )
     .await?
     .accept(StatusCode::OK)
 }

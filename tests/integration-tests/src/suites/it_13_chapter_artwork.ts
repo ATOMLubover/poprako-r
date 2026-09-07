@@ -81,6 +81,8 @@ export async function runIt13Module(ctx: RunCtx): Promise<void> {
     assert.assert(exported.download_url.includes("chapter_artwork/"));
     assert.assert(!exported.download_url.includes("cdn-cgi/image"));
 
+    await assertExportedOnce(chapterId, allocated.artwork_version);
+
     await assertCompletedOnce(chapterId);
 
     const duplicate = expectSuccessData<ArtworkAllocation>(
@@ -147,6 +149,16 @@ export async function runIt13Module(ctx: RunCtx): Promise<void> {
         2,
     );
     await assertRetired(deletedComic.chapter_id, deletedSlot.artwork_version, true);
+}
+
+async function assertExportedOnce(chapterId: string, artworkVersion: number): Promise<void> {
+    await withDatabaseClient(async (client) => {
+        const records = await client.queryObject<{ count: string }>(
+            `SELECT count(*)::text AS count FROM t_chapter_workflow_record WHERE f_chapter_id = $1 AND f_kind = 'artwork-exported' AND f_payload->>'artwork_version' = $2`,
+            [chapterId, artworkVersion.toString()],
+        );
+        assert.assertEquals(records.rows[0]?.count, "1");
+    });
 }
 
 async function assertCompletedOnce(chapterId: string): Promise<void> {
