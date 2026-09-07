@@ -23,6 +23,7 @@ case "${PUSH:-0}" in
 esac
 
 set -- docker buildx build \
+    --progress plain \
     --ulimit nofile=65536 \
     --platform "$platform" \
     --tag "$image_name"
