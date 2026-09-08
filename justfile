@@ -49,6 +49,18 @@ prod-ci-build:
 swagger:
     cargo run -p poprako-swagger > docs/swagger.json
 
-# Optional local wrapper for the repository's CI validation entry point.
+# Format all workspace crates.
 fmt:
-    sh scripts/ci-check.sh
+    cargo fmt --all
+
+# Check formatting using the CI arguments.
+fmt-check:
+    cargo fmt --all --check
+
+# Check all workspace targets and features using the CI arguments.
+check:
+    cargo check --workspace --all-targets --all-features
+
+# Run Clippy using the CI arguments.
+clippy:
+    cargo clippy --workspace --all-targets --all-features -- -D warnings
