@@ -25,12 +25,13 @@ use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 use tracing::instrument;
 
-use poprako_rdb_core::RdbCore;
+use poprako_rdb_core::{RdbConn, RdbCore};
 
 use crate::part::effect::Develop;
 use crate::part::nucl::ReptRead;
 use crate::part::prom::oper::{Defer, DeferBatch};
 use crate::part::prom::payload::TaskPayload;
+use crate::part::prom::task::Task;
 use crate::part_impl::prom::rdb_impl::actor::base::{ObjView, RdbPromActor};
 use crate::part_impl::prom::rdb_impl::entity::LocalMessageEntryRow;
 use crate::part_impl::repo::rdb_impl::schema::t_local_message;
@@ -95,19 +96,7 @@ where
         context: &mut RdbContext<L>,
         oper: &Defer<'a, String, TaskPayload, ()>,
     ) -> BaseRest<()> {
-        //
-        // Internal implementation detail.
-        let now = OffsetDateTime::now_utc();
-
-        let entry = LocalMessageEntryRow::from_task(&oper.task, now)?;
-
-        diesel::insert_into(t_local_message::table)
-            .values(&entry)
-            .execute(context.conn())
-            .await
-            .map_err(diesel)?;
-
-        accept(())
+        defer(context.conn(), &oper.task).await
     }
 }
 
@@ -129,27 +118,7 @@ where
         context: &mut RdbContext<L>,
         oper: &DeferBatch<'t, 'a, String, TaskPayload, ()>,
     ) -> BaseRest<()> {
-        //
-        // Internal implementation detail.
-        if oper.tasks.is_empty() {
-            return accept(());
-        }
-
-        let now = OffsetDateTime::now_utc();
-
-        let entries = oper
-            .tasks
-            .iter()
-            .map(|task| LocalMessageEntryRow::from_task(task, now))
-            .collect::<BaseRest<Vec<_>>>()?;
-
-        diesel::insert_into(t_local_message::table)
-            .values(&entries)
-            .execute(context.conn())
-            .await
-            .map_err(diesel)?;
-
-        accept(())
+        defer_batch(context.conn(), oper.tasks).await
     }
 }
 
@@ -181,4 +150,51 @@ where
     });
 
     rdb_prom
+}
+
+// Implements defer.
+#[instrument(level = "info", skip_all)]
+async fn defer(
+    conn: &mut RdbConn,
+    task: &Task<'_, String, TaskPayload>,
+) -> BaseRest<()> {
+    //
+    let now = OffsetDateTime::now_utc();
+
+    let entry = LocalMessageEntryRow::from_task(task, now)?;
+
+    diesel::insert_into(t_local_message::table)
+        .values(&entry)
+        .execute(conn)
+        .await
+        .map_err(diesel)?;
+
+    accept(())
+}
+
+// Implements defer batch.
+#[instrument(level = "info", skip_all)]
+async fn defer_batch(
+    conn: &mut RdbConn,
+    tasks: &[Task<'_, String, TaskPayload>],
+) -> BaseRest<()> {
+    //
+    if tasks.is_empty() {
+        return accept(());
+    }
+
+    let now = OffsetDateTime::now_utc();
+
+    let entries = tasks
+        .iter()
+        .map(|task| LocalMessageEntryRow::from_task(task, now))
+        .collect::<BaseRest<Vec<_>>>()?;
+
+    diesel::insert_into(t_local_message::table)
+        .values(&entries)
+        .execute(conn)
+        .await
+        .map_err(diesel)?;
+
+    accept(())
 }
