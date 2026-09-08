@@ -46,8 +46,8 @@ pub async fn get_my_info(
     //
     let id = user_token.user_id.clone();
 
-    usecase::user::get_info::<RdbContext<ReptRead>, HybRepo, _, _>(
-        (harn.repo(), harn.obj_dept(), harn.develop()),
+    usecase::user::get_info::<RdbContext<ReptRead>, HybRepo, _>(
+        (harn.repo(), harn.obj_dept()),
         user_token,
         id,
     )
@@ -74,8 +74,8 @@ pub async fn get_info(
     Extension(token): Extension<UserToken>,
 ) -> HttpResult<UserInfoView> {
     //
-    usecase::user::get_info::<RdbContext<ReptRead>, HybRepo, _, _>(
-        (harn.repo(), harn.obj_dept(), harn.develop()),
+    usecase::user::get_info::<RdbContext<ReptRead>, HybRepo, _>(
+        (harn.repo(), harn.obj_dept()),
         token,
         user_id,
     )

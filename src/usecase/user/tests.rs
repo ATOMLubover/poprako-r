@@ -10,8 +10,7 @@
 mod delete;
 mod extra;
 
-// get_info(get_info)(positive): a user reading itself should receive info and emit UserActive.
-// get_info(get_info)(positive): reading another user should not emit UserActive.
+// get_info(get_info)(positive): self and other-user reads preserve activity without emitting events.
 // get_info(get_info)(negative): missing user should propagate an argument error.
 // update_info(update_info)(positive): owner update should change user info and member nickname.
 // update_info(update_info)(negative): non-owner update should return a perm error without mutation.
@@ -43,7 +42,6 @@ use crate::data::instr::user::{
 };
 use crate::model::read::proj::member::MemberInfo;
 use crate::model::shared::user::UserToken;
-use crate::part::effect::event::Event;
 use crate::part_impl::repo::mock_impl::{Mock, MockContext, MockObjRecord};
 use crate::result::ExpectedVariant;
 use crate::test_util::assert_expected_variant;
@@ -127,16 +125,17 @@ fn update_password_instr(
 }
 
 #[tokio::test]
-async fn get_info_emits_active_for_self() {
+async fn get_info_preserves_activity_for_self() {
     //
     let mock = Mock::new();
 
-    mock.seed_user(
-        user("user-1", "qid-1", "Nick"),
-        credential("user-1", "password"),
-    );
+    let mut user_info = user("user-1", "qid-1", "Nick");
 
-    let val = get_info((&mock, &mock, &mock), token("user-1"), "user-1".into())
+    user_info.last_active_at = OffsetDateTime::UNIX_EPOCH;
+
+    mock.seed_user(user_info, credential("user-1", "password"));
+
+    let val = get_info((&mock, &mock), token("user-1"), "user-1".into())
         .await
         .unwrap();
 
@@ -144,15 +143,14 @@ async fn get_info_emits_active_for_self() {
 
     assert_eq!(val.nickname, "Nick");
 
-    let events = mock.drain_events();
+    assert_eq!(val.last_active_at, 0);
 
-    assert_eq!(events.len(), 1);
+    assert_eq!(
+        mock.snapshot().users[0].last_active_at,
+        OffsetDateTime::UNIX_EPOCH
+    );
 
-    let Event::UserActive { payload } = &events[0] else {
-        panic!("expected UserActive event");
-    };
-
-    assert_eq!(payload.user_id, "user-1");
+    assert_eq!(mock.event_count(), 0);
 }
 
 #[tokio::test]
@@ -165,7 +163,7 @@ async fn get_info_does_not_emit_active_for_other_user() {
         credential("user-2", "password"),
     );
 
-    get_info((&mock, &mock, &mock), token("user-1"), "user-2".into())
+    get_info((&mock, &mock), token("user-1"), "user-2".into())
         .await
         .unwrap();
 
@@ -177,7 +175,7 @@ async fn get_info_propagates_missing_user() {
     //
     let mock = Mock::new();
 
-    let err = get_info((&mock, &mock, &mock), token("user-1"), "user-1".into())
+    let err = get_info((&mock, &mock), token("user-1"), "user-1".into())
         .await
         .err()
         .unwrap();

@@ -8,36 +8,17 @@ use crate::part::repo::assignment::AssignmentRepo;
 use crate::part::repo::chapter::ChapterRepo;
 use crate::part::repo::system_mail::SystemMailRepo;
 use crate::part::repo::team::TeamRepo;
-use crate::part::repo::user::UserRepo;
-use crate::usecase::{system_mail, user};
+use crate::usecase::system_mail;
 
 /// Routes a delivered event to domain-oriented application use cases.
 #[instrument(level = "info", skip_all)]
 pub async fn dispatch<C, R>(repo: &R, event: Event)
 where
     C: Context + Send,
-    R: AssignmentRepo<C>
-        + ChapterRepo<C>
-        + TeamRepo<C>
-        + SystemMailRepo
-        + UserRepo<C>
-        + Sync,
+    R: AssignmentRepo<C> + ChapterRepo<C> + TeamRepo<C> + SystemMailRepo + Sync,
 {
     match event {
         //
-        Event::UserActive { payload } => {
-            //
-            if user::touch_last_active::<C, R>((repo,), &payload.user_id)
-                .await
-                .is_err()
-            {
-                tracing::warn!(
-                    user_id = %payload.user_id,
-                    "failed to update last-active timestamp",
-                );
-            }
-        }
-
         Event::UserSignedUp { payload } => {
             //
             system_mail::invitation::notify_invitor::<C, R>(

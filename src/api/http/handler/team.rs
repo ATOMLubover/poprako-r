@@ -110,14 +110,14 @@ pub async fn list_online_user_ids(
     .accept(StatusCode::OK)
 }
 
-/// `PUT /api/v1/teams/{team_id}/mark-self-online` — refresh own lease.
+/// `PUT /api/v1/teams/{team_id}/mark-self-online` — refresh own activity and lease.
 #[cfg_attr(feature = "swagger", utoipa::path(
     put,
     path = "/api/v1/teams/{team_id}/mark-self-online",
     tag = "teams",
     params(("team_id" = String, Path, description = "Team ID")),
     responses(
-        (status = 204, description = "Online lease refreshed"),
+        (status = 204, description = "User and membership activity updated and online lease refreshed"),
         (status = 401, description = "Authentication required"),
         (status = 403, description = "Team membership required"),
     ),

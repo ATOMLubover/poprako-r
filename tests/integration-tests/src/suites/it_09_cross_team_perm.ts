@@ -29,7 +29,15 @@ import { testEnv } from "../config/env.ts";
 import { expectError, expectNoContent, expectSuccessList } from "../http/assertions.ts";
 import type { ErrorBody, SuccessBody } from "../http/apiClient.ts";
 import { ApiClient } from "../http/apiClient.ts";
-import { createMemberInvitation, createTeam, listMyMembers, listTeams, registerInvitee } from "../http/fixtures.ts";
+import {
+    createMemberInvitation,
+    createTeam,
+    getMyInfo,
+    getUserInfo,
+    listMyMembers,
+    listTeams,
+    registerInvitee,
+} from "../http/fixtures.ts";
 import { nickname, password, qid, titled } from "../state/prefix.ts";
 import { ROLE } from "../state/roles.ts";
 import { OUTSIDER_PERSONA, type RunCtx, type UserClient } from "../state/runCtx.ts";
@@ -218,9 +226,22 @@ export async function runIt09Module(ctx: RunCtx): Promise<void> {
 
     // ---------- I1.10 online-user leases stay team-scoped ----------
 
+    const inactiveUser = await getMyInfo(trans01.api);
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    assert.assertEquals((await getMyInfo(trans01.api)).last_active_at, inactiveUser.last_active_at);
+    assert.assertEquals((await getUserInfo(trans01.api, trans01.userId)).last_active_at, inactiveUser.last_active_at);
+
     expectNoContent(
         await trans01.api.put<null>(`/api/v1/teams/${defaultTeamId}/mark-self-online`),
     );
+
+    const activeUser = await getMyInfo(trans01.api);
+    const activeMembers = await listMyMembers(trans01.api);
+
+    assert.assertGreater(activeUser.last_active_at, inactiveUser.last_active_at);
+    assert.assert(activeMembers.every((member) => member.last_active_at === activeUser.last_active_at));
 
     // Repeated marks renew the same lease and remain idempotent.
     expectNoContent(
@@ -265,12 +286,19 @@ export async function runIt09Module(ctx: RunCtx): Promise<void> {
         "second team online users must not include default-team-only users",
     );
 
+    const outsiderBeforeRejectedMark = await getMyInfo(outsiderApi);
+
     expectError(
         await outsiderApi.put<ErrorBody>(
             `/api/v1/teams/${defaultTeamId}/mark-self-online`,
         ),
         403,
         4,
+    );
+
+    assert.assertEquals(
+        (await getMyInfo(outsiderApi)).last_active_at,
+        outsiderBeforeRejectedMark.last_active_at,
     );
 
     expectError(

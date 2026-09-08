@@ -31,9 +31,6 @@ use crate::data::view::user::UserInfoView;
 use crate::model::shared::user::UserToken;
 use crate::model::write::member::MemberNicknameRepl;
 use crate::model::write::user::{UserCredsRepl, UserInfoRepl};
-use crate::part::effect::event::Event;
-use crate::part::effect::event::user::UserActiveEvent;
-use crate::part::effect::{Develop, EffectEvent as _};
 use crate::part::nucl::ReptRead;
 use crate::part::obj_dept::UserAvatar;
 use crate::part::repo::member::MemberRepo;
@@ -46,38 +43,18 @@ use crate::result::{BaseError, BaseRest, ExpectedVariant, accept};
 use crate::usecase::user::view::user_info_view;
 use crate::value::image::{ImageKind, UserAvatarKey};
 
-/// Updates one user's last-active timestamp.
-#[instrument(level = "info", skip(repo))]
-pub async fn touch_last_active<C, R>(
-    (repo,): (&R,),
-    user_id: &str,
-) -> BaseRest<()>
-where
-    C: Context,
-    R: UserRepo<C>,
-{
-    UpdateUser::TouchLastActive { id: user_id }
-        .run_on(repo)
-        .await?;
-
-    accept(())
-}
-
 /// Fetches a user's profile with avatar URL resolution.
 ///
-/// Non-transactional read. When the requesting user (identified by `token`)
-/// reads their own profile, a [`UserActive`] event is emitted for activity
-/// tracking. Other users' profiles are returned without emitting an event.
+/// Non-transactional read without activity updates, including self-reads.
 ///
 /// # Type Parameters
 ///
 /// * `C` — Context anchor.
 /// * `R: UserRepo<C>` — User storage.
 /// * `O` — Resolves the avatar signed URL through `ObjDept`.
-/// * `D: EffectDevelop` — Processes the activity event (only for self-reads).
-#[instrument(level = "info", skip(repo, obj_dept, develop, token), fields(actor_user_id = %token.user_id))]
-pub async fn get_info<C, R, O, D>(
-    (repo, obj_dept, develop): (&R, &O, &D),
+#[instrument(level = "info", skip(repo, obj_dept, token), fields(actor_user_id = %token.user_id))]
+pub async fn get_info<C, R, O>(
+    (repo, obj_dept): (&R, &O),
     token: UserToken,
     id: String,
 ) -> BaseRest<UserInfoView>
@@ -85,21 +62,8 @@ where
     C: Context,
     R: UserRepo<C>,
     O: ObjDeptView<UserAvatar, C> + Sync,
-    D: Develop + Send + Sync,
 {
     let user_info = GetUserInfo::Id { id: &id }.run_on(repo).await?;
-
-    // Dispatch an activity event when the user reads their own profile.
-    if token.user_id == id {
-        //
-        Event::UserActive {
-            payload: UserActiveEvent {
-                user_id: token.user_id,
-            },
-        }
-        .develop_on(develop)
-        .await;
-    }
 
     user_info_view(obj_dept, user_info).await
 }
