@@ -1,7 +1,7 @@
 //! Mock implementation of [EffectDevelop] for testing event collection.
 
 use crate::part::effect::event::Event;
-use crate::part::effect::event::user::UserActiveEvent;
+use crate::part::effect::event::user::UserSignedUpEvent;
 use crate::part::effect::{Develop, EffectEvent};
 use crate::part_impl::repo::mock_impl::Mock;
 
@@ -24,9 +24,11 @@ async fn develop_collects_events() {
     //
     let mock = Mock::new();
 
-    Event::UserActive {
-        payload: UserActiveEvent {
-            user_id: "user-1".into(),
+    Event::UserSignedUp {
+        payload: UserSignedUpEvent {
+            team_id: "team-1".into(),
+            invitor_id: "user-1".into(),
+            invitee_qid: "qid-2".into(),
         },
     }
     .develop_on(&mock)

@@ -13,7 +13,6 @@ use crate::part::repo::assignment::AssignmentRepo;
 use crate::part::repo::chapter::ChapterRepo;
 use crate::part::repo::system_mail::SystemMailRepo;
 use crate::part::repo::team::TeamRepo;
-use crate::part::repo::user::UserRepo;
 use crate::part_impl::effect::async_impl::dispatch::dispatch;
 
 /// Background event consumer that receives events from the channel and
@@ -47,7 +46,6 @@ impl<R> EffectActor<R> {
             + ChapterRepo<C>
             + TeamRepo<C>
             + SystemMailRepo
-            + UserRepo<C>
             + Send
             + Sync,
     {

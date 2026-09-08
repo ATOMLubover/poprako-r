@@ -25,7 +25,6 @@ use crate::part::repo::assignment::AssignmentRepo;
 use crate::part::repo::chapter::ChapterRepo;
 use crate::part::repo::system_mail::SystemMailRepo;
 use crate::part::repo::team::TeamRepo;
-use crate::part::repo::user::UserRepo;
 
 /// Async side-effect dispatcher backed by a bounded channel.
 ///
@@ -53,7 +52,6 @@ impl AsyncEffectDevelop {
             + ChapterRepo<C>
             + TeamRepo<C>
             + SystemMailRepo
-            + UserRepo<C>
             + Send
             + Sync
             + 'static,
@@ -169,8 +167,6 @@ const fn event_name(event: &Event) -> &'static str {
     match event {
         //
         // Internal state field Event.
-        Event::UserActive { payload: _ } => "user_active",
-
         Event::UserSignedUp { payload: _ } => "user_signed_up",
 
         Event::ChapterPublished { payload: _ } => "chapter_published",

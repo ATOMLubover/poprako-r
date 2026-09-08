@@ -15,9 +15,12 @@ use crate::part::repo::member::MemberRepo;
 use crate::part::repo::online_user::OnlineUserRepo;
 use crate::part::repo::oper::member::FindMemberInfo;
 use crate::part::repo::oper::online_user::{ListOnlineUserIds, MarkOnlineUser};
+use crate::part::repo::oper::user::UpdateUser;
+use crate::part::repo::user::UserRepo;
 use crate::result::{BaseError, BaseRest, ExpectedVariant, accept};
 
 /// Marks the authenticated user online in one team for ten minutes.
+/// Updates user and membership activity before renewing the lease, without a transaction.
 #[instrument(level = "info", skip(repo, token), fields(actor_user_id = %token.user_id))]
 pub async fn mark_self_online<C, R>(
     (repo,): (&R,),
@@ -26,7 +29,7 @@ pub async fn mark_self_online<C, R>(
 ) -> BaseRest<()>
 where
     C: Context,
-    R: MemberRepo<C> + OnlineUserRepo + Sync,
+    R: MemberRepo<C> + UserRepo<C> + OnlineUserRepo + Sync,
 {
     let member_info = FindMemberInfo::UserTeam {
         user_id: &token.user_id,
@@ -44,6 +47,10 @@ where
     };
 
     TeamPermComplex::ensure_user_can_mark_self_online(&member_info)?;
+
+    UpdateUser::TouchLastActive { id: &token.user_id }
+        .run_on(repo)
+        .await?;
 
     MarkOnlineUser {
         team_id: &team_id,

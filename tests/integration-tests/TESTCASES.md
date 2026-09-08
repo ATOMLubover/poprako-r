@@ -1,5 +1,8 @@
 # HTTP Integration Test Inventory
 
+The `it_09` suite also verifies that self/profile reads preserve activity, online heartbeats synchronously refresh user
+and membership activity, and unauthorized heartbeats leave activity unchanged.
+
 This is the maintenance inventory for the TypeScript API suite. Whenever a file under `src/suites/` is added, removed,
 renamed, or materially changes scope, update this document in the same change. The executable suite and its assertions
 are the source of truth; do not keep separate implementation plans or status trackers here.

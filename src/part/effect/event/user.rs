@@ -1,13 +1,5 @@
 //! User domain events.
 
-/// Event emitted when a user becomes active.
-///
-/// [`UserActive`]: crate::part::effect::event::Event::UserActive
-pub struct UserActiveEvent {
-    /// Unique identifier of the user who became active.
-    pub user_id: String,
-}
-
 /// Event emitted when a new user signs up through an invitation.
 ///
 /// [`UserSignedUp`]: crate::part::effect::event::Event::UserSignedUp

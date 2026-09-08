@@ -8,7 +8,7 @@ pub mod user;
 use crate::part::effect::event::chapter::{
     ChapterPublishedEvent, ChapterWorkflowCompletedEvent,
 };
-use crate::part::effect::event::user::{UserActiveEvent, UserSignedUpEvent};
+use crate::part::effect::event::user::UserSignedUpEvent;
 
 /// Domain events produced by use cases and dispatched through [`EffectDevelop`].
 ///
@@ -17,12 +17,6 @@ use crate::part::effect::event::user::{UserActiveEvent, UserSignedUpEvent};
 /// [`EffectDevelop`]: crate::part::effect::EffectDevelop
 pub enum Event {
     //
-    /// Emitted when a user shows activity (e.g., views their own profile).
-    UserActive {
-        /// Activity event details.
-        payload: UserActiveEvent,
-    },
-
     /// Emitted when a new user signs up via an invitation.
     UserSignedUp {
         /// Signup event details.
