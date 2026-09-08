@@ -73,7 +73,7 @@ where
     R: TeamRepo<C> + UserRepo<C> + MemberRepo<C> + Send + Sync,
     O: ObjDeptView<TeamAvatar, C> + Sync,
 {
-    let user_info = GetUserInfo::Id { id: &token.user_id }.run_on(repo).await?;
+    let user_info = GetUserInfo { id: &token.user_id }.run_on(repo).await?;
 
     TeamPermComplex::ensure_user_can_create(&user_info)?;
 
@@ -86,7 +86,7 @@ where
     let team_info = nucl
         .coord(async move |context| {
             //
-            let user_info = GetUserInfoExcluded::Id { id: &token.user_id }
+            let user_info = GetUserInfoExcluded { id: &token.user_id }
                 .step_on(repo, context)
                 .await?;
 
@@ -134,7 +134,7 @@ where
     C: Context,
     R: TeamRepo<C> + MemberRepo<C> + Sync,
 {
-    let member_info = FindMemberInfo::UserTeam {
+    let member_info = FindMemberInfo {
         user_id: &token.user_id,
         team_id: &instr.id,
     }
@@ -157,7 +157,7 @@ where
         description: instr.description,
     };
 
-    UpdateTeam::Info { repl: &team_repl }.run_on(repo).await?;
+    UpdateTeam { repl: &team_repl }.run_on(repo).await?;
 
     accept(())
 }
@@ -204,7 +204,7 @@ where
         ImageKind::TeamAvatar,
     )?;
 
-    let member_info = FindMemberInfo::UserTeam {
+    let member_info = FindMemberInfo {
         user_id: &token.user_id,
         team_id: &id,
     }
@@ -224,7 +224,7 @@ where
     let obj_slot = nucl
         .coord(async move |context| {
             //
-            GetTeamInfoExcluded::Id { id: &id }
+            GetTeamInfoExcluded { id: &id }
                 .step_on(repo, context)
                 .await?;
 
@@ -267,7 +267,7 @@ where
     R: MemberRepo<C>,
     O: ObjDept<TeamAvatar, C> + Sync,
 {
-    let member_info = FindMemberInfo::UserTeam {
+    let member_info = FindMemberInfo {
         user_id: &token.user_id,
         team_id: &id,
     }

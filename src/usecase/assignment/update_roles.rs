@@ -65,7 +65,7 @@ where
 
         ChapterComplex::ensure_chapter_writable(&chapter_info)?;
 
-        let assignment_infos = ListAssignmentInfosExcluded::Chapter {
+        let assignment_infos = ListAssignmentInfosExcluded {
             chapter_id: &instr.chapter_id,
         }
         .step_on(repo, context)

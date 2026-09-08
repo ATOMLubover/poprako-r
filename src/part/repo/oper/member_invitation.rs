@@ -64,13 +64,9 @@ pub enum UpdateMemberInvitation<'a> {
 /// Retrieves invitation info by code with excluded fields omitted.
 #[derive(Oper)]
 #[oper(output = MemberInvitationInfo)]
-pub enum GetMemberInvitationInfoExcluded<'a> {
-    //
-    /// Retrieves by invitation code.
-    Code {
-        /// The invitation code.
-        code: &'a str,
-    },
+pub struct GetMemberInvitationInfoExcluded<'a> {
+    /// The invitation code.
+    pub code: &'a str,
 }
 
 /// Deletes a member invitation by ID.

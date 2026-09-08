@@ -15,13 +15,9 @@ pub struct CreateTeam<'a> {
 /// Looks up a team by identifier.
 #[derive(Oper)]
 #[oper(output = TeamInfo)]
-pub enum GetTeamInfo<'a> {
-    //
-    /// Fetch by team id.
-    Id {
-        /// The team identifier.
-        id: &'a str,
-    },
+pub struct GetTeamInfo<'a> {
+    /// The team identifier.
+    pub id: &'a str,
 }
 
 /// Resolves the owning team from a nested domain resource.
@@ -53,25 +49,17 @@ pub struct ListTeamInfos<'a> {
 /// Updates a team.
 #[derive(Oper)]
 #[oper(output = ())]
-pub enum UpdateTeam<'a> {
-    //
-    /// Updates team metadata fields.
-    Info {
-        /// The replacement payload.
-        repl: &'a TeamRepl,
-    },
+pub struct UpdateTeam<'a> {
+    /// The replacement payload.
+    pub repl: &'a TeamRepl,
 }
 
 /// Looks up a team by identifier, matching deleted rows as well.
 #[derive(Oper)]
 #[oper(output = TeamInfo)]
-pub enum GetTeamInfoExcluded<'a> {
-    //
-    /// Fetch by team id.
-    Id {
-        /// The team identifier.
-        id: &'a str,
-    },
+pub struct GetTeamInfoExcluded<'a> {
+    /// The team identifier.
+    pub id: &'a str,
 }
 
 /// Locks a team row.

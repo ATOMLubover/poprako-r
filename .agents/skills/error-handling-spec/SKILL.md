@@ -1,69 +1,43 @@
 ---
 name: error-handling-spec
-description: Active PopRaKo application, adapter, transaction, and HTTP error rules. Use whenever constructing, converting, propagating, logging, or reviewing errors in Rust code.
+description: Classify, convert, propagate, and review PopRaKo server application, adapter, transaction, and HTTP errors.
 ---
 
 # Error handling
 
-The application error surface is
+The server error surface is
 `crate::result::{BaseError, BaseRest, ExpectedVariant, accept}`.
+Infrastructure workspace crates keep their own errors; classify them at the
+server adapter boundary rather than adding server dependencies to those crates.
 
-## Classify errors where their meaning is known
+## Classification
 
-- Use `BaseError::Expected` for client-correctable argument,
-  authentication, and permission conditions. Select
-  `ExpectedVariant::{Args, Auth, Perm}` and use an established
-  `poprako_util::i18n::trl` key for a client-visible message.
+- Use `BaseError::Expected` for client-correctable argument, authentication,
+  and permission conditions. Choose `ExpectedVariant::{Args, Auth, Perm}`
+  and an established `poprako_util::i18n::trl` key for client-visible text.
 - Use `BaseError::Unrecoverable` for infrastructure failures, corrupt
   persisted state, and violated internal invariants.
-- Preserve a `BaseError` with `?` when the caller adds no new classification.
-  Do not wrap an error only to restate the function name.
-- Use `accept(value)` for a simple successful `BaseRest<T>` return when that is
-  the nearby convention.
+- Preserve an existing BaseError with `?` when no new classification is
+  needed. Do not wrap an error merely to restate the function name.
+- Use `accept(value)` for simple successful results where it is the nearby
+  convention.
 
-## Log external errors before conversion
+## Conversion and propagation
 
-- An adapter boundary that receives an error from an external SDK, driver, or
-  client library is the error-production leaf. It must emit one structured
-  tracing event containing the original error before converting it into
-  `BaseError`, `NuclError`, or another application error.
-- Record the original error with its `Debug` representation so SDK error
-  variants and source-chain diagnostics are retained. Add a stable operation
-  field and safe resource identifiers when useful.
-- Never directly convert an external error with `map_err`, `From`, or a helper
-  that does not perform this tracing first.
-- A later `?` only propagates an already classified error. Propagation sites
-  must not emit another direct event for the same failure.
-- Conversion logs must still redact credentials, tokens, and presigned URLs.
-  Business instruction DTOs may remain in the enclosing use-case span when
-  they are needed to reconstruct the failed operation and contain no secrets.
+- Before converting external SDK, driver, or client errors, apply
+  [tracing-usage-spec](../tracing-usage-spec/SKILL.md): the conversion leaf
+  must record the original error once, with redaction. A `map_err`, `From`,
+  or helper must not silently discard that diagnostic responsibility.
+- `From<NuclError<...>> for BaseError` in `src/part/nucl.rs` converts
+  backend and step errors from `Nucl::coord`.
+- Server Diesel/pool failures use `crate::shared::result` helpers. Use
+  `.optional()` when absence has business meaning, then classify `None`
+  with the appropriate translated expected error.
+- HTTP handlers return `HttpResult<T>`, propagate application errors with
+  `?`, and use `Accept as _` or `no_content` for success. Only HTTP facts,
+  such as mismatching path/body identifiers, are classified in handlers.
+- `From<BaseError> for HttpError` owns HTTP mapping and must never expose
+  unrecoverable details to clients.
 
-## Boundaries
-
-- `Nucl::coord` converts backend and step errors through the
-  `From<NuclError<...>> for BaseError` implementation in `src/part/nucl.rs`.
-- Diesel and pool failures use `crate::shared::result` helpers. Query code
-  should use `.optional()` when absence has local business meaning, then map
-  `None` to the appropriate translated expected error.
-- HTTP handlers return `HttpResult<T>`, propagate application errors with `?`,
-  and use `Accept as _` or `no_content` for success. Only HTTP-specific facts,
-  such as path/body identifier mismatches, are classified in handlers.
-- `From<BaseError> for HttpError` owns the application-to-HTTP mapping and must
-  not expose unrecoverable details to clients.
-
-## Observability
-
-Returning an error through `?` is propagation and must not itself emit an
-error event. Trace an error only where it is constructed, consumed, retried,
-or converted. Never record passwords, tokens, credentials, or private
-payloads.
-
-## Review
-
-- [ ] No retired error aliases or parallel transaction mappers were added.
-- [ ] Expected and unrecoverable conditions are classified at the narrowest
-  boundary that understands them.
-- [ ] Every external SDK/driver error is traced in full at its adapter boundary
-  before conversion.
-- [ ] Handlers propagate use-case errors without duplicating business mapping.
-- [ ] Logs contain structured context but no secret or duplicate error event.
+Review classification at the narrowest informed boundary, preserve the
+existing transaction mapper, and avoid duplicate business mapping in handlers.

@@ -87,21 +87,14 @@ macro_rules! preloadable_variant {
             inject: path [$($inject_path:ident),*] => $inject_field:ident,
         }
     ) => {
-        struct $marker;
-
-        impl Incl for $marker {
-            type Owner = $owner;
-            type Related = <$query as BatchByIds>::Info;
-            type Query = $query;
-
-            fn resolve_key(owner: &Self::Owner) -> Option<&str> {
+        preloadable_variant!(@generate $owner; $marker => $query {
+            resolve: |owner| {
                 preloadable_resolve_path!(owner; [$($resolve_path),*] => $resolve_field)
-            }
-
-            fn inject(owner: &mut Self::Owner, related: Option<Self::Related>) {
+            },
+            inject: |owner, related| {
                 preloadable_inject_path!(owner, related; [$($inject_path),*] => $inject_field);
-            }
-        }
+            },
+        });
     };
 
     (
@@ -111,23 +104,12 @@ macro_rules! preloadable_variant {
             inject: path [$($inject_path:ident),*] => $inject_field:ident,
         }
     ) => {
-        struct $marker;
-
-        impl Incl for $marker {
-            type Owner = $owner;
-            type Related = <$query as BatchByIds>::Info;
-            type Query = $query;
-
-            fn resolve_key(owner: &Self::Owner) -> Option<&str> {
-                let $resolve_owner = owner;
-
-                $resolve
-            }
-
-            fn inject(owner: &mut Self::Owner, related: Option<Self::Related>) {
+        preloadable_variant!(@generate $owner; $marker => $query {
+            resolve: |$resolve_owner| { $resolve },
+            inject: |owner, related| {
                 preloadable_inject_path!(owner, related; [$($inject_path),*] => $inject_field);
-            }
-        }
+            },
+        });
     };
 
     (
@@ -137,24 +119,12 @@ macro_rules! preloadable_variant {
             inject: with |$inject_owner:ident, $inject_related:ident| $inject:expr,
         }
     ) => {
-        struct $marker;
-
-        impl Incl for $marker {
-            type Owner = $owner;
-            type Related = <$query as BatchByIds>::Info;
-            type Query = $query;
-
-            fn resolve_key(owner: &Self::Owner) -> Option<&str> {
+        preloadable_variant!(@generate $owner; $marker => $query {
+            resolve: |owner| {
                 preloadable_resolve_path!(owner; [$($resolve_path),*] => $resolve_field)
-            }
-
-            fn inject(owner: &mut Self::Owner, related: Option<Self::Related>) {
-                let $inject_owner = owner;
-                let $inject_related = related;
-
-                $inject;
-            }
-        }
+            },
+            inject: |$inject_owner, $inject_related| { $inject; },
+        });
     };
 
     (
@@ -162,6 +132,19 @@ macro_rules! preloadable_variant {
         $marker:ident => $query:ident {
             resolve: with |$resolve_owner:ident| $resolve:expr,
             inject: with |$inject_owner:ident, $inject_related:ident| $inject:expr,
+        }
+    ) => {
+        preloadable_variant!(@generate $owner; $marker => $query {
+            resolve: |$resolve_owner| { $resolve },
+            inject: |$inject_owner, $inject_related| { $inject; },
+        });
+    };
+
+    (@generate
+        $owner:ty;
+        $marker:ident => $query:ident {
+            resolve: |$resolve_owner:ident| $resolve:block,
+            inject: |$inject_owner:ident, $inject_related:ident| $inject:block,
         }
     ) => {
         struct $marker;
@@ -181,7 +164,7 @@ macro_rules! preloadable_variant {
                 let $inject_owner = owner;
                 let $inject_related = related;
 
-                $inject;
+                $inject
             }
         }
     };

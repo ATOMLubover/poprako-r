@@ -413,15 +413,7 @@ where
         context: &mut RdbContext<L>,
         oper: &ListAssignmentInfosExcluded<'_>,
     ) -> BaseRest<Vec<AssignmentInfo>> {
-        //
-        match oper {
-            //
-            ListAssignmentInfosExcluded::Chapter { chapter_id } => {
-                //
-                list_chapter_assignments_excluded(context.conn(), chapter_id)
-                    .await
-            }
-        }
+        list_chapter_assignments_excluded(context.conn(), oper.chapter_id).await
     }
 }
 

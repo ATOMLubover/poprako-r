@@ -1,1 +1,0 @@
-{"eval_id":1,"eval_name":"below-limit","prompt":"This cohesive Rust module is 430 lines. Split it into model, helpers, and operations modules so the directory looks cleaner.","assertions":["Measures or cites the 430-line size before deciding","Rejects splitting a module below 600 lines","Makes no edits and avoids catch-all module names"]}

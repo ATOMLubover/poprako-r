@@ -110,7 +110,7 @@ where
         .run_on(repo)
         .await?;
 
-    let member_info = FindMemberInfo::UserTeam {
+    let member_info = FindMemberInfo {
         user_id: &token.user_id,
         team_id: &team_id,
     }

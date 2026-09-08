@@ -23,7 +23,7 @@ pub async fn user_roundtrip_uses_testcontainer(shared: RdbCore) {
     let repo = HybRepo::new(shared.clone());
 
     let user_info = repo
-        .run(&GetUserInfo::Id {
+        .run(&GetUserInfo {
             id: &user_fixture.user_entry.id,
         })
         .await
@@ -33,7 +33,7 @@ pub async fn user_roundtrip_uses_testcontainer(shared: RdbCore) {
     assert_eq!(user_info.id, user_fixture.user_entry.id);
 
     let user_credential = repo
-        .run(&GetUserCredential::Qid {
+        .run(&GetUserCredential {
             qid: &user_fixture.user_entry.qid,
         })
         .await
@@ -43,7 +43,7 @@ pub async fn user_roundtrip_uses_testcontainer(shared: RdbCore) {
     assert_eq!(user_credential.user_id, user_fixture.user_entry.id);
 
     let found_user_info = repo
-        .run(&FindUserInfo::Qid {
+        .run(&FindUserInfo {
             qid: &user_fixture.user_entry.qid,
         })
         .await

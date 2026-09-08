@@ -40,13 +40,7 @@ impl Run<GetUserInfo<'_>> for HybRepo {
         &self,
         oper: &GetUserInfo<'_>,
     ) -> Result<UserInfo, Self::Error> {
-        //
-        match oper {
-            //
-            GetUserInfo::Id { id } => {
-                submit_query!(self.rdb_core, get_info_by_id, id)
-            }
-        }
+        submit_query!(self.rdb_core, get_info_by_id, oper.id)
     }
 }
 
@@ -61,13 +55,7 @@ impl Run<GetUserCredential<'_>> for HybRepo {
         &self,
         oper: &GetUserCredential<'_>,
     ) -> Result<UserCredential, Self::Error> {
-        //
-        match oper {
-            //
-            GetUserCredential::Qid { qid } => {
-                submit_query!(self.rdb_core, get_credential_by_qid, qid)
-            }
-        }
+        submit_query!(self.rdb_core, get_credential_by_qid, oper.qid)
     }
 }
 
@@ -82,13 +70,7 @@ impl Run<FindUserInfo<'_>> for HybRepo {
         &self,
         oper: &FindUserInfo<'_>,
     ) -> Result<Option<UserInfo>, Self::Error> {
-        //
-        match oper {
-            //
-            FindUserInfo::Qid { qid } => {
-                submit_query!(self.rdb_core, find_info_by_qid, qid)
-            }
-        }
+        submit_query!(self.rdb_core, find_info_by_qid, oper.qid)
     }
 }
 
@@ -156,13 +138,7 @@ where
         context: &mut RdbContext<L>,
         oper: &FindUserInfo<'_>,
     ) -> BaseRest<Option<UserInfo>> {
-        //
-        match oper {
-            //
-            FindUserInfo::Qid { qid } => {
-                find_info_by_qid(context.conn(), qid).await
-            }
-        }
+        find_info_by_qid(context.conn(), oper.qid).await
     }
 }
 
@@ -218,13 +194,7 @@ where
         context: &mut RdbContext<L>,
         oper: &GetUserInfoExcluded<'_>,
     ) -> BaseRest<UserInfo> {
-        //
-        match oper {
-            //
-            GetUserInfoExcluded::Id { id } => {
-                get_info_by_id_excluded(context.conn(), id).await
-            }
-        }
+        get_info_by_id_excluded(context.conn(), oper.id).await
     }
 }
 

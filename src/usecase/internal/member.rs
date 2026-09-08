@@ -262,15 +262,12 @@ impl MemberLoader {
         let member_info = match mode {
             //
             LoadMode::Run => {
-                //
-                FindMemberInfo::UserTeam { user_id, team_id }
-                    .run_on(repo)
-                    .await
+                FindMemberInfo { user_id, team_id }.run_on(repo).await
             }
 
             LoadMode::Step { context } => {
                 //
-                FindMemberInfo::UserTeam { user_id, team_id }
+                FindMemberInfo { user_id, team_id }
                     .step_on(repo, context)
                     .await
             }

@@ -11,9 +11,15 @@
 #[cfg(all(test, feature = "rdb", feature = "prom_impl"))]
 pub mod tests;
 
+use diesel::prelude::{
+    BoolExpressionMethods as _, ExpressionMethods as _, QueryDsl as _,
+};
+use diesel_async::RunQueryDsl as _;
 use poprako_orchestra::{AtLeast, Level, Oper, Step};
 use time::OffsetDateTime;
 use tracing::instrument;
+
+use poprako_rdb_core::RdbConn;
 
 use crate::part::nucl::ReptRead;
 use crate::part_impl::prom::rdb_impl::entity::{
@@ -23,8 +29,6 @@ use crate::part_impl::repo::rdb_impl::schema::t_local_message;
 use crate::result::{BaseError, BaseRest, accept};
 use crate::shared::RdbContext;
 use crate::shared::result::diesel;
-
-// ── Operations ──────────────────────────────────────────────────────────────
 
 /// Poll the oldest visible pending record from each topic without processing work.
 ///
@@ -182,7 +186,245 @@ impl<'a> PurgeCompleted<'a> {
     }
 }
 
-// ── Step impls ──────────────────────────────────────────────────────────────
+// Implements poll pending.
+#[instrument(level = "info", skip_all)]
+async fn poll_pending(conn: &mut RdbConn) -> BaseRest<Vec<LocalMessageRow>> {
+    //
+    let processing_message =
+        diesel::alias!(t_local_message as processing_message);
+
+    let processing_topic = processing_message
+        .filter(
+            processing_message
+                .field(t_local_message::f_status)
+                .eq(LocalMessageStatus::Processing.as_str()),
+        )
+        .filter(
+            processing_message
+                .field(t_local_message::f_topic)
+                .eq(t_local_message::f_topic),
+        );
+
+    let local_message_rows = t_local_message::table
+        .filter(
+            t_local_message::f_status.eq(LocalMessageStatus::Pending.as_str()),
+        )
+        .filter(t_local_message::f_visible_at.le(OffsetDateTime::now_utc()))
+        .filter(diesel::dsl::not(diesel::dsl::exists(processing_topic)))
+        .distinct_on(t_local_message::f_topic)
+        .order_by((
+            t_local_message::f_topic.asc(),
+            t_local_message::f_created_at.asc(),
+            t_local_message::f_id.asc(),
+        ))
+        .select((
+            t_local_message::f_id,
+            t_local_message::f_topic,
+            t_local_message::f_payload,
+            t_local_message::f_retried_count,
+            t_local_message::f_lease,
+        ))
+        .load::<LocalMessageRow>(conn)
+        .await
+        .map_err(diesel)?;
+
+    accept(local_message_rows)
+}
+
+// Implements claim pending.
+#[instrument(level = "info", skip_all)]
+async fn claim_pending(
+    conn: &mut RdbConn,
+    id: &str,
+    lease: i64,
+) -> BaseRest<bool> {
+    //
+    let updated = diesel::update(
+        t_local_message::table
+            .filter(t_local_message::f_id.eq(id))
+            .filter(
+                t_local_message::f_status
+                    .eq(LocalMessageStatus::Pending.as_str()),
+            )
+            .filter(t_local_message::f_lease.eq(lease)),
+    )
+    .set((
+        t_local_message::f_status.eq(LocalMessageStatus::Processing.as_str()),
+        t_local_message::f_updated_at.eq(OffsetDateTime::now_utc()),
+    ))
+    .execute(conn)
+    .await
+    .map_err(diesel)?;
+
+    accept(updated > 0)
+}
+
+// Implements complete message.
+#[instrument(level = "info", skip_all)]
+async fn complete_message(
+    conn: &mut RdbConn,
+    id: &str,
+    lease: i64,
+) -> BaseRest<()> {
+    //
+    diesel::update(
+        t_local_message::table
+            .filter(t_local_message::f_id.eq(id))
+            .filter(
+                t_local_message::f_status
+                    .eq(LocalMessageStatus::Processing.as_str()),
+            )
+            .filter(t_local_message::f_lease.eq(lease)),
+    )
+    .set((
+        t_local_message::f_status.eq(LocalMessageStatus::Completed.as_str()),
+        t_local_message::f_updated_at.eq(OffsetDateTime::now_utc()),
+    ))
+    .execute(conn)
+    .await
+    .map_err(diesel)?;
+
+    accept(())
+}
+
+// Implements fail message.
+#[instrument(level = "info", skip_all)]
+async fn fail_message(
+    conn: &mut RdbConn,
+    id: &str,
+    lease: i64,
+    error: &str,
+) -> BaseRest<()> {
+    //
+    diesel::update(
+        t_local_message::table
+            .filter(t_local_message::f_id.eq(id))
+            .filter(
+                t_local_message::f_status
+                    .eq(LocalMessageStatus::Processing.as_str()),
+            )
+            .filter(t_local_message::f_lease.eq(lease)),
+    )
+    .set((
+        t_local_message::f_status.eq(LocalMessageStatus::Dead.as_str()),
+        t_local_message::f_last_error.eq(Some(error)),
+        t_local_message::f_updated_at.eq(OffsetDateTime::now_utc()),
+    ))
+    .execute(conn)
+    .await
+    .map_err(diesel)?;
+
+    accept(())
+}
+
+// Implements retry message.
+#[instrument(level = "info", skip_all)]
+async fn retry_message(
+    conn: &mut RdbConn,
+    id: &str,
+    lease: i64,
+    error: &str,
+    visible_at: &OffsetDateTime,
+    retry_delta: i64,
+) -> BaseRest<()> {
+    //
+    diesel::update(
+        t_local_message::table
+            .filter(t_local_message::f_id.eq(id))
+            .filter(
+                t_local_message::f_status
+                    .eq(LocalMessageStatus::Processing.as_str()),
+            )
+            .filter(t_local_message::f_lease.eq(lease)),
+    )
+    .set((
+        t_local_message::f_status.eq(LocalMessageStatus::Pending.as_str()),
+        t_local_message::f_last_error.eq(Some(error)),
+        t_local_message::f_retried_count
+            .eq(t_local_message::f_retried_count + retry_delta),
+        t_local_message::f_visible_at.eq(*visible_at),
+        t_local_message::f_updated_at.eq(OffsetDateTime::now_utc()),
+    ))
+    .execute(conn)
+    .await
+    .map_err(diesel)?;
+
+    accept(())
+}
+
+// Implements reset stuck.
+#[instrument(level = "info", skip_all)]
+async fn reset_stuck(
+    conn: &mut RdbConn,
+    before: &OffsetDateTime,
+) -> BaseRest<()> {
+    //
+    diesel::update(
+        t_local_message::table
+            .filter(
+                t_local_message::f_status
+                    .eq(LocalMessageStatus::Processing.as_str()),
+            )
+            .filter(t_local_message::f_updated_at.le(*before))
+            .filter(t_local_message::f_lease.ge(3)),
+    )
+    .set((
+        t_local_message::f_status.eq(LocalMessageStatus::Dead.as_str()),
+        t_local_message::f_last_error.eq(Some("processing timeout exceeded")),
+        t_local_message::f_lease.eq(t_local_message::f_lease + 1),
+        t_local_message::f_updated_at.eq(OffsetDateTime::now_utc()),
+    ))
+    .execute(conn)
+    .await
+    .map_err(diesel)?;
+
+    diesel::update(
+        t_local_message::table
+            .filter(
+                t_local_message::f_status
+                    .eq(LocalMessageStatus::Processing.as_str()),
+            )
+            .filter(t_local_message::f_updated_at.le(*before))
+            .filter(t_local_message::f_lease.lt(3)),
+    )
+    .set((
+        t_local_message::f_status.eq(LocalMessageStatus::Pending.as_str()),
+        t_local_message::f_lease.eq(t_local_message::f_lease + 1),
+        t_local_message::f_updated_at.eq(OffsetDateTime::now_utc()),
+    ))
+    .execute(conn)
+    .await
+    .map_err(diesel)?;
+
+    accept(())
+}
+
+// Implements purge completed.
+#[instrument(level = "info", skip_all)]
+async fn purge_completed(
+    conn: &mut RdbConn,
+    completed_before: &OffsetDateTime,
+    dead_before: &OffsetDateTime,
+) -> BaseRest<usize> {
+    //
+    let (expired_completed, expired_dead) = (
+        t_local_message::f_status
+            .eq(LocalMessageStatus::Completed.as_str())
+            .and(t_local_message::f_updated_at.lt(*completed_before)),
+        t_local_message::f_status
+            .eq(LocalMessageStatus::Dead.as_str())
+            .and(t_local_message::f_updated_at.lt(*dead_before)),
+    );
+
+    let purged_count = diesel::delete(
+        t_local_message::table.filter(expired_completed.or(expired_dead)),
+    )
+    .execute(conn)
+    .await
+    .map_err(diesel)?;
+
+    accept(purged_count)
+}
 
 /// Queue repository used by the prom background actor.
 ///
@@ -216,52 +458,7 @@ where
         context: &mut RdbContext<L>,
         _oper: &PollPending,
     ) -> BaseRest<Vec<LocalMessageRow>> {
-        //
-        // Internal implementation detail.
-        use diesel::prelude::{ExpressionMethods as _, QueryDsl as _};
-
-        use diesel_async::RunQueryDsl as _;
-
-        let processing_message =
-            diesel::alias!(t_local_message as processing_message);
-
-        let processing_topic = processing_message
-            .filter(
-                processing_message
-                    .field(t_local_message::f_status)
-                    .eq(LocalMessageStatus::Processing.as_str()),
-            )
-            .filter(
-                processing_message
-                    .field(t_local_message::f_topic)
-                    .eq(t_local_message::f_topic),
-            );
-
-        let local_message_rows = t_local_message::table
-            .filter(
-                t_local_message::f_status
-                    .eq(LocalMessageStatus::Pending.as_str()),
-            )
-            .filter(t_local_message::f_visible_at.le(OffsetDateTime::now_utc()))
-            .filter(diesel::dsl::not(diesel::dsl::exists(processing_topic)))
-            .distinct_on(t_local_message::f_topic)
-            .order_by((
-                t_local_message::f_topic.asc(),
-                t_local_message::f_created_at.asc(),
-                t_local_message::f_id.asc(),
-            ))
-            .select((
-                t_local_message::f_id,
-                t_local_message::f_topic,
-                t_local_message::f_payload,
-                t_local_message::f_retried_count,
-                t_local_message::f_lease,
-            ))
-            .load::<LocalMessageRow>(context.conn())
-            .await
-            .map_err(diesel)?;
-
-        accept(local_message_rows)
+        poll_pending(context.conn()).await
     }
 }
 
@@ -282,31 +479,7 @@ where
         context: &mut RdbContext<L>,
         oper: &ClaimPending<'a>,
     ) -> BaseRest<bool> {
-        //
-        // Internal implementation detail.
-        use diesel::prelude::{ExpressionMethods as _, QueryDsl as _};
-
-        use diesel_async::RunQueryDsl as _;
-
-        let updated = diesel::update(
-            t_local_message::table
-                .filter(t_local_message::f_id.eq(oper.id))
-                .filter(
-                    t_local_message::f_status
-                        .eq(LocalMessageStatus::Pending.as_str()),
-                )
-                .filter(t_local_message::f_lease.eq(oper.lease)),
-        )
-        .set((
-            t_local_message::f_status
-                .eq(LocalMessageStatus::Processing.as_str()),
-            t_local_message::f_updated_at.eq(OffsetDateTime::now_utc()),
-        ))
-        .execute(context.conn())
-        .await
-        .map_err(diesel)?;
-
-        accept(updated > 0)
+        claim_pending(context.conn(), oper.id, oper.lease).await
     }
 }
 
@@ -327,31 +500,7 @@ where
         context: &mut RdbContext<L>,
         oper: &CompleteMessage<'a>,
     ) -> BaseRest<()> {
-        //
-        // Internal implementation detail.
-        use diesel::prelude::{ExpressionMethods as _, QueryDsl as _};
-
-        use diesel_async::RunQueryDsl as _;
-
-        diesel::update(
-            t_local_message::table
-                .filter(t_local_message::f_id.eq(oper.id))
-                .filter(
-                    t_local_message::f_status
-                        .eq(LocalMessageStatus::Processing.as_str()),
-                )
-                .filter(t_local_message::f_lease.eq(oper.lease)),
-        )
-        .set((
-            t_local_message::f_status
-                .eq(LocalMessageStatus::Completed.as_str()),
-            t_local_message::f_updated_at.eq(OffsetDateTime::now_utc()),
-        ))
-        .execute(context.conn())
-        .await
-        .map_err(diesel)?;
-
-        accept(())
+        complete_message(context.conn(), oper.id, oper.lease).await
     }
 }
 
@@ -372,31 +521,7 @@ where
         context: &mut RdbContext<L>,
         oper: &FailMessage<'a>,
     ) -> BaseRest<()> {
-        //
-        // Internal implementation detail.
-        use diesel::prelude::{ExpressionMethods as _, QueryDsl as _};
-
-        use diesel_async::RunQueryDsl as _;
-
-        diesel::update(
-            t_local_message::table
-                .filter(t_local_message::f_id.eq(oper.id))
-                .filter(
-                    t_local_message::f_status
-                        .eq(LocalMessageStatus::Processing.as_str()),
-                )
-                .filter(t_local_message::f_lease.eq(oper.lease)),
-        )
-        .set((
-            t_local_message::f_status.eq(LocalMessageStatus::Dead.as_str()),
-            t_local_message::f_last_error.eq(Some(oper.error)),
-            t_local_message::f_updated_at.eq(OffsetDateTime::now_utc()),
-        ))
-        .execute(context.conn())
-        .await
-        .map_err(diesel)?;
-
-        accept(())
+        fail_message(context.conn(), oper.id, oper.lease, oper.error).await
     }
 }
 
@@ -418,33 +543,15 @@ where
         oper: &RetryMessage<'a>,
     ) -> BaseRest<()> {
         //
-        // Internal implementation detail.
-        use diesel::prelude::{ExpressionMethods as _, QueryDsl as _};
-
-        use diesel_async::RunQueryDsl as _;
-
-        diesel::update(
-            t_local_message::table
-                .filter(t_local_message::f_id.eq(oper.id))
-                .filter(
-                    t_local_message::f_status
-                        .eq(LocalMessageStatus::Processing.as_str()),
-                )
-                .filter(t_local_message::f_lease.eq(oper.lease)),
+        retry_message(
+            context.conn(),
+            oper.id,
+            oper.lease,
+            oper.error,
+            oper.visible_at,
+            oper.retry_delta,
         )
-        .set((
-            t_local_message::f_status.eq(LocalMessageStatus::Pending.as_str()),
-            t_local_message::f_last_error.eq(Some(oper.error)),
-            t_local_message::f_retried_count
-                .eq(t_local_message::f_retried_count + oper.retry_delta),
-            t_local_message::f_visible_at.eq(*oper.visible_at),
-            t_local_message::f_updated_at.eq(OffsetDateTime::now_utc()),
-        ))
-        .execute(context.conn())
         .await
-        .map_err(diesel)?;
-
-        accept(())
     }
 }
 
@@ -465,51 +572,7 @@ where
         context: &mut RdbContext<L>,
         oper: &ResetStuck<'a>,
     ) -> BaseRest<()> {
-        //
-        // Internal implementation detail.
-        use diesel::prelude::{ExpressionMethods as _, QueryDsl as _};
-
-        use diesel_async::RunQueryDsl as _;
-
-        diesel::update(
-            t_local_message::table
-                .filter(
-                    t_local_message::f_status
-                        .eq(LocalMessageStatus::Processing.as_str()),
-                )
-                .filter(t_local_message::f_updated_at.le(*oper.before))
-                .filter(t_local_message::f_lease.ge(3)),
-        )
-        .set((
-            t_local_message::f_status.eq(LocalMessageStatus::Dead.as_str()),
-            t_local_message::f_last_error
-                .eq(Some("processing timeout exceeded")),
-            t_local_message::f_lease.eq(t_local_message::f_lease + 1),
-            t_local_message::f_updated_at.eq(OffsetDateTime::now_utc()),
-        ))
-        .execute(context.conn())
-        .await
-        .map_err(diesel)?;
-
-        diesel::update(
-            t_local_message::table
-                .filter(
-                    t_local_message::f_status
-                        .eq(LocalMessageStatus::Processing.as_str()),
-                )
-                .filter(t_local_message::f_updated_at.le(*oper.before))
-                .filter(t_local_message::f_lease.lt(3)),
-        )
-        .set((
-            t_local_message::f_status.eq(LocalMessageStatus::Pending.as_str()),
-            t_local_message::f_lease.eq(t_local_message::f_lease + 1),
-            t_local_message::f_updated_at.eq(OffsetDateTime::now_utc()),
-        ))
-        .execute(context.conn())
-        .await
-        .map_err(diesel)?;
-
-        accept(())
+        reset_stuck(context.conn(), oper.before).await
     }
 }
 
@@ -531,29 +594,7 @@ where
         oper: &PurgeCompleted<'a>,
     ) -> BaseRest<usize> {
         //
-        // Internal implementation detail.
-        use diesel::prelude::{
-            BoolExpressionMethods as _, ExpressionMethods as _, QueryDsl as _,
-        };
-
-        use diesel_async::RunQueryDsl as _;
-
-        let (expired_completed, expired_dead) = (
-            t_local_message::f_status
-                .eq(LocalMessageStatus::Completed.as_str())
-                .and(t_local_message::f_updated_at.lt(*oper.completed_before)),
-            t_local_message::f_status
-                .eq(LocalMessageStatus::Dead.as_str())
-                .and(t_local_message::f_updated_at.lt(*oper.dead_before)),
-        );
-
-        let purged_count = diesel::delete(
-            t_local_message::table.filter(expired_completed.or(expired_dead)),
-        )
-        .execute(context.conn())
-        .await
-        .map_err(diesel)?;
-
-        accept(purged_count)
+        purge_completed(context.conn(), oper.completed_before, oper.dead_before)
+            .await
     }
 }

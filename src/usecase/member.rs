@@ -59,7 +59,7 @@ where
 {
     let roles = instr.roles;
 
-    let member_info = FindMemberInfo::UserTeam {
+    let member_info = FindMemberInfo {
         user_id: &token.user_id,
         team_id: &instr.team_id,
     }
@@ -80,7 +80,7 @@ where
         .coord(async move |context| {
             //
 
-            let user_info = GetUserInfoExcluded::Id { id: &instr.user_id }
+            let user_info = GetUserInfoExcluded { id: &instr.user_id }
                 .step_on(repo, context)
                 .await?;
 
@@ -88,7 +88,7 @@ where
                 .step_on(repo, context)
                 .await?;
 
-            let existing_member_info = FindMemberInfo::UserTeam {
+            let existing_member_info = FindMemberInfo {
                 user_id: &instr.user_id,
                 team_id: &instr.team_id,
             }
@@ -168,14 +168,14 @@ where
         .coord(async move |context| {
             //
 
-            let current_user_info = GetUserInfoExcluded::Id {
+            let current_user_info = GetUserInfoExcluded {
                 id: &current_user_id,
             }
             .step_on(repo, context)
             .await?;
 
             let member_invitation_info =
-                GetMemberInvitationInfoExcluded::Code { code: &instr.code }
+                GetMemberInvitationInfoExcluded { code: &instr.code }
                     .step_on(repo, context)
                     .await?;
 
@@ -205,7 +205,7 @@ where
                 });
             }
 
-            let existing_member_info = FindMemberInfo::UserTeam {
+            let existing_member_info = FindMemberInfo {
                 user_id: &current_user_id,
                 team_id: &member_invitation_info.team_id,
             }
@@ -275,7 +275,7 @@ where
 
     if let MemberListSpec::Team { team_id, .. } = &member_list_spec {
         //
-        let member_info = FindMemberInfo::UserTeam {
+        let member_info = FindMemberInfo {
             user_id: &token.user_id,
             team_id,
         }
@@ -322,14 +322,14 @@ where
     let () = nucl
         .coord(async move |context| {
             //
-            let member_info = GetMemberInfo::Id {
+            let member_info = GetMemberInfo {
                 id: &instr.id,
                 incls: &[],
             }
             .step_on(repo, context)
             .await?;
 
-            let caller_member_info = FindMemberInfo::UserTeam {
+            let caller_member_info = FindMemberInfo {
                 user_id: &token.user_id,
                 team_id: &member_info.team_id,
             }
@@ -416,14 +416,14 @@ where
     let () = nucl
         .coord(async move |context| {
             //
-            let member_info = GetMemberInfo::Id {
+            let member_info = GetMemberInfo {
                 id: &id,
                 incls: &[],
             }
             .step_on(repo, context)
             .await?;
 
-            let caller_member_info = FindMemberInfo::UserTeam {
+            let caller_member_info = FindMemberInfo {
                 user_id: &token.user_id,
                 team_id: &member_info.team_id,
             }

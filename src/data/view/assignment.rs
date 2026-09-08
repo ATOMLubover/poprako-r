@@ -67,16 +67,6 @@ impl AssignmentInfoView {
 impl From<AssignmentInfo> for AssignmentInfoView {
     // Convert one persisted assignment into API value shape.
     fn from(model: AssignmentInfo) -> Self {
-        //
-        Self {
-            id: model.id,
-            chapter_id: model.chapter_id,
-            user_id: model.user_id,
-            user: None,
-            chapter: None,
-            roles: model.roles,
-            created_at: model.created_at.to_unix_milli(),
-            updated_at: model.updated_at.to_unix_milli(),
-        }
+        Self::from_model(model, None, None)
     }
 }

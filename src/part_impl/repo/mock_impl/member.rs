@@ -158,12 +158,11 @@ impl<'a> Run<FindMemberInfo<'a>> for Mock {
         // Internal implementation detail.
         let state = self.state.lock().unwrap();
 
-        match oper {
-            //
-            FindMemberInfo::UserTeam { user_id, team_id } => accept(
-                find_member_by_user_id_and_team_id(&state, user_id, team_id),
-            ),
-        }
+        accept(find_member_by_user_id_and_team_id(
+            &state,
+            oper.user_id,
+            oper.team_id,
+        ))
     }
 }
 
@@ -354,12 +353,7 @@ impl<'a, 'b> Run<GetMemberInfo<'a, 'b>> for Mock {
         // Internal implementation detail.
         let state = self.state.lock().unwrap();
 
-        match oper {
-            //
-            GetMemberInfo::Id { id, incls } => {
-                get_member_info(&state, id, incls)
-            }
-        }
+        get_member_info(&state, oper.id, oper.incls)
     }
 }
 
@@ -480,17 +474,11 @@ impl<'a> Step<FindMemberInfo<'a>, MockContext> for Mock {
         oper: &FindMemberInfo<'a>,
     ) -> BaseRest<Option<MemberInfo>> {
         //
-        match oper {
-            //
-            FindMemberInfo::UserTeam { user_id, team_id } => {
-                //
-                accept(find_member_by_user_id_and_team_id(
-                    &context.state,
-                    user_id,
-                    team_id,
-                ))
-            }
-        }
+        accept(find_member_by_user_id_and_team_id(
+            &context.state,
+            oper.user_id,
+            oper.team_id,
+        ))
     }
 }
 
@@ -508,13 +496,7 @@ impl<'a, 'b> Step<GetMemberInfo<'a, 'b>, MockContext> for Mock {
         context: &mut MockContext,
         oper: &GetMemberInfo<'a, 'b>,
     ) -> BaseRest<MemberInfo> {
-        //
-        match oper {
-            //
-            GetMemberInfo::Id { id, incls } => {
-                get_member_info(&context.state, id, incls)
-            }
-        }
+        get_member_info(&context.state, oper.id, oper.incls)
     }
 }
 

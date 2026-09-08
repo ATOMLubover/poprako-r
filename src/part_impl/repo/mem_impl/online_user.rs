@@ -11,7 +11,7 @@ use dashmap::DashMap;
 use dashmap::mapref::entry::Entry;
 use poprako_orchestra::Run;
 
-use crate::part::repo::oper::online_user::{ListOnlineUserIds, MarkOnlineUser};
+use crate::part::repo::oper::online_user::{ListOnlineUserIds, MarkUserOnline};
 use crate::part_impl::repo::HybRepo;
 use crate::result::{BaseError, BaseRest, accept};
 
@@ -70,13 +70,13 @@ fn list_online_user_ids_at(
     online_user_ids
 }
 
-impl Run<MarkOnlineUser<'_>> for HybRepo {
+impl Run<MarkUserOnline<'_>> for HybRepo {
     // Keep memory adapter failures on the shared repository error channel.
     // Defines the adapter error exposed by this operation.
     type Error = BaseError;
 
     // Refresh one user's online lease in the target team.
-    async fn run(&self, oper: &MarkOnlineUser<'_>) -> BaseRest<()> {
+    async fn run(&self, oper: &MarkUserOnline<'_>) -> BaseRest<()> {
         //
         mark_user_online_at(
             &self.active_ddls,

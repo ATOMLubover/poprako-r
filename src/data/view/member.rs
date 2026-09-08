@@ -66,16 +66,6 @@ impl MemberInfoView {
 impl From<MemberInfo> for MemberInfoView {
     // Convert persisted membership model into response DTO without include expansion.
     fn from(value: MemberInfo) -> Self {
-        //
-        Self {
-            id: value.id,
-            user_id: value.user_id,
-            nickname: value.user_nickname,
-            last_active_at: value.user_last_active_at.to_unix_milli(),
-            team_id: value.team_id,
-            user: None,
-            team: None,
-            roles: value.roles,
-        }
+        Self::from_model(value, None, None)
     }
 }

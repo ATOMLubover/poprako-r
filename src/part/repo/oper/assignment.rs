@@ -74,13 +74,9 @@ pub enum ListAssignmentInfos<'a, 'b> {
 /// Lists and exclusively locks all assignment rows under a chapter.
 #[derive(Oper)]
 #[oper(output = Vec<AssignmentInfo>)]
-pub enum ListAssignmentInfosExcluded<'a> {
-    //
-    /// Lists and locks by chapter.
-    Chapter {
-        /// Chapter identifier.
-        chapter_id: &'a str,
-    },
+pub struct ListAssignmentInfosExcluded<'a> {
+    /// Chapter identifier.
+    pub chapter_id: &'a str,
 }
 
 /// Creates an assignment.

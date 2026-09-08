@@ -42,7 +42,7 @@ where
 {
     let comment_list_spec = Into::<CommentListSpec>::into(instr);
 
-    let member_info = FindMemberInfo::UserTeam {
+    let member_info = FindMemberInfo {
         user_id: &token.user_id,
         team_id: &comment_list_spec.team_id,
     }
@@ -81,7 +81,7 @@ where
     C: Context,
     R: CommentRepo<C> + MemberRepo<C> + Sync,
 {
-    let member_info = FindMemberInfo::UserTeam {
+    let member_info = FindMemberInfo {
         user_id: &token.user_id,
         team_id: &instr.team_id,
     }

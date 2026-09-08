@@ -16,7 +16,9 @@ the proposed split:
 
 1. Measure the unsplit module. Count the parent plus implementation that would
    return to it if its direct submodules were inlined. Run
-   `scripts/audit_module_split.py` for an existing split.
+   this skill's [audit script](scripts/audit_module_split.py) for an existing
+   split. From the repository root, run
+   `python3 .agents/skills/module-splitting-conventions/scripts/audit_module_split.py <parent.rs>`.
 2. Inventory concrete responsibilities and map every relevant function or type
    to one responsibility.
 3. Propose the fewest stable, business-named child modules needed to keep every
@@ -26,8 +28,8 @@ the proposed split:
    modules before confirmation.
 5. After confirmation, perform the extraction without changing public API,
    behavior, errors, transactions, or tracing.
-6. Re-run the audit and the repository's normal formatting, compile, test, and
-   lint checks.
+6. Re-run the audit and the root AGENTS formatting/compilation checks, plus
+   affected tests. Run repository linters only under the root CI/request rule.
 
 ## Boundary rules
 
@@ -49,3 +51,8 @@ the proposed split:
 
 Import style and forbidden-name enforcement belong to the repository linters;
 do not recreate those checks in this skill.
+
+The audit and authoring rule require files strictly below 600 lines. The CI
+file-length script currently allows exactly 600; its pass does not replace
+this stricter check. Reusable split scenarios live in
+[evals/evals.json](evals/evals.json).

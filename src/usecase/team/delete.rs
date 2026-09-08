@@ -38,7 +38,7 @@ where
             .step_on(repo, context)
             .await?;
 
-            let member_info = FindMemberInfo::UserTeam {
+            let member_info = FindMemberInfo {
                 user_id: &token.user_id,
                 team_id: delete_scope.team_id(),
             }

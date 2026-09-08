@@ -94,7 +94,7 @@ where
 {
     let roles = instr.roles;
 
-    let member_info = FindMemberInfo::UserTeam {
+    let member_info = FindMemberInfo {
         user_id: &token.user_id,
         team_id: &instr.team_id,
     }
@@ -129,7 +129,7 @@ where
                 .step_on(repo, context)
                 .await?;
 
-            let invitee_user_info = FindUserInfo::Qid {
+            let invitee_user_info = FindUserInfo {
                 qid: &instr.invitee_qid,
             }
             .step_on(repo, context)
@@ -138,7 +138,7 @@ where
             if let Some(invitee_user_info) = invitee_user_info {
                 //
 
-                let invitee_member_info = FindMemberInfo::UserTeam {
+                let invitee_member_info = FindMemberInfo {
                     user_id: &invitee_user_info.id,
                     team_id: &instr.team_id,
                 }
@@ -227,7 +227,7 @@ where
     R: MemberInvitationRepo<C> + MemberRepo<C> + Sync,
     O: ObjDeptView<UserAvatar, C> + Sync,
 {
-    let member_info = FindMemberInfo::UserTeam {
+    let member_info = FindMemberInfo {
         user_id: &token.user_id,
         team_id: &instr.team_id,
     }

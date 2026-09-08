@@ -14,10 +14,7 @@ async fn run_reads_seeded_user() {
         credential("user-1", "password"),
     );
 
-    let user_info = GetUserInfo::Id { id: "user-1" }
-        .run_on(&mock)
-        .await
-        .unwrap();
+    let user_info = GetUserInfo { id: "user-1" }.run_on(&mock).await.unwrap();
 
     assert_eq!(user_info.nickname, "Nick");
 }

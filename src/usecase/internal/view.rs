@@ -26,7 +26,7 @@ use crate::part::obj_dept::{ComicCover, PageImage, TeamAvatar, UserAvatar};
 use crate::part::repo::oper::chapter::ListPinnedChapterInfos;
 use crate::part::repo::oper::page::ListFirstPageInfos;
 use crate::result::{BaseError, BaseRest, accept};
-use crate::usecase::internal::page::PageLoader;
+use crate::usecase::internal::page::{PageLoader, PinnedChapterSnapshot};
 
 /// Deduplicated object identifiers discovered in a complete include graph.
 #[derive(Default)]
@@ -203,6 +203,7 @@ impl ObjViewSnapshot {
         repo: &R,
         obj_dept: &O,
         ids: ObjViewIds<'_>,
+        pinned_chapter_snapshot: Option<&PinnedChapterSnapshot>,
     ) -> BaseRest<Self>
     where
         C: Context,
@@ -219,7 +220,11 @@ impl ObjViewSnapshot {
 
         let (mut snapshot, comic_fallback_pages) = futures_util::try_join!(
             Self::load::<C, O>(obj_dept, &ids),
-            PageLoader::load_ids_from_comics(repo, &comic_ids),
+            PageLoader::load_ids_from_comics(
+                repo,
+                &comic_ids,
+                pinned_chapter_snapshot,
+            ),
         )?;
 
         let mut page_ids = comic_fallback_pages
@@ -322,6 +327,41 @@ impl ObjViewSnapshot {
     }
 }
 
+/// Loads origin and thumbnail URLs for deduplicated object marker identifiers.
+pub async fn load_obj_urls<C, O, K>(
+    obj_dept: &O,
+    ids: &[&str],
+) -> BaseRest<HashMap<String, ObjUrls>>
+where
+    C: Context,
+    K: KeyMap,
+    O: ObjDeptView<K, C> + Sync,
+{
+    if ids.is_empty() {
+        return accept(HashMap::new());
+    }
+
+    let mut ids = ids.to_vec();
+
+    ids.sort_unstable();
+
+    ids.dedup();
+
+    let obj_metas = ListObjMetas::<K>::new(&ids)
+        .run_on(obj_dept)
+        .await
+        .map_err(BaseError::from)?;
+
+    let obj_url_spec = ObjUrlSpec::default().with_origin().with_thumbnail();
+
+    let obj_urls = GenObjUrls::<K>::new(&obj_metas, obj_url_spec)
+        .run_on(obj_dept)
+        .await
+        .map_err(BaseError::from)?;
+
+    accept(obj_urls)
+}
+
 // Resolves origin and thumbnail strings from one object URL value.
 fn resolved_obj_urls(
     urls: Option<&ObjUrls>,
@@ -335,35 +375,6 @@ fn resolved_obj_urls(
         urls.origin_url.as_ref().map(ToString::to_string),
         urls.thumbnail_url.as_ref().map(ToString::to_string),
     )
-}
-
-// Loads URLs for the supplied object marker identifiers.
-async fn load_obj_urls<C, O, K>(
-    obj_dept: &O,
-    ids: &[&str],
-) -> BaseRest<HashMap<String, ObjUrls>>
-where
-    C: Context,
-    K: KeyMap,
-    O: ObjDeptView<K, C> + Sync,
-{
-    if ids.is_empty() {
-        return accept(HashMap::new());
-    }
-
-    let obj_metas = ListObjMetas::<K>::new(ids)
-        .run_on(obj_dept)
-        .await
-        .map_err(BaseError::from)?;
-
-    let obj_url_spec = ObjUrlSpec::default().with_origin().with_thumbnail();
-
-    let obj_urls = GenObjUrls::<K>::new(&obj_metas, obj_url_spec)
-        .run_on(obj_dept)
-        .await
-        .map_err(BaseError::from)?;
-
-    accept(obj_urls)
 }
 
 // Resolves origin and thumbnail URLs for one identifier.

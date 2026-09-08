@@ -135,7 +135,7 @@ where
 
             ChapterComplex::ensure_chapter_writable(&chapter_info)?;
 
-            let invitee_user_info = FindUserInfo::Qid {
+            let invitee_user_info = FindUserInfo {
                 qid: &instr.invitee_qid,
             }
             .step_on(repo, context)
@@ -234,9 +234,7 @@ where
         + Sync,
 {
     let assignment_invitation_info =
-        GetAssignmentInvitationInfo::Id { id: &id }
-            .run_on(repo)
-            .await?;
+        GetAssignmentInvitationInfo { id: &id }.run_on(repo).await?;
 
     ensure_user_admin(
         repo,

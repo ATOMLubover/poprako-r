@@ -67,16 +67,6 @@ impl MemberInvitationInfoView {
 impl From<MemberInvitationInfo> for MemberInvitationInfoView {
     // Convert invitation model into response value without preloaded invitor payload.
     fn from(value: MemberInvitationInfo) -> Self {
-        //
-        Self {
-            id: value.id,
-            team_id: value.team_id,
-            invitor_id: value.invitor_id,
-            invitor: None,
-            invitee_qid: value.invitee_qid,
-            code: value.code,
-            is_pending: value.is_pending,
-            roles: value.roles,
-        }
+        Self::from_model(value, None)
     }
 }

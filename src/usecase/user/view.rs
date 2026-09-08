@@ -2,16 +2,16 @@
 
 use std::collections::HashMap;
 
-use poprako_orchestra::{Context, OperRun as _};
+use poprako_orchestra::Context;
 
 use poprako_obj_dept::ObjDeptView;
-use poprako_obj_dept::model::url::{ObjUrlSpec, ObjUrls};
-use poprako_obj_dept::oper::{GenObjUrls, ListObjMetas};
+use poprako_obj_dept::model::url::ObjUrls;
 
 use crate::data::view::user::UserInfoView;
 use crate::model::read::proj::user::UserInfo;
 use crate::part::obj_dept::UserAvatar;
-use crate::result::{BaseError, BaseRest, accept};
+use crate::result::{BaseRest, accept};
+use crate::usecase::internal::view::load_obj_urls;
 
 /// Resolves one user model with its avatar origin and thumbnail URLs.
 pub async fn user_info_view<C, O>(
@@ -55,27 +55,5 @@ where
     C: Context,
     O: ObjDeptView<UserAvatar, C> + Sync,
 {
-    if user_ids.is_empty() {
-        return accept(HashMap::new());
-    }
-
-    let mut user_ids = user_ids.to_vec();
-
-    user_ids.sort_unstable();
-
-    user_ids.dedup();
-
-    let obj_metas = ListObjMetas::<UserAvatar>::new(&user_ids)
-        .run_on(obj_dept)
-        .await
-        .map_err(BaseError::from)?;
-
-    let obj_url_spec = ObjUrlSpec::default().with_origin().with_thumbnail();
-
-    let avatar_urls = GenObjUrls::<UserAvatar>::new(&obj_metas, obj_url_spec)
-        .run_on(obj_dept)
-        .await
-        .map_err(BaseError::from)?;
-
-    accept(avatar_urls)
+    load_obj_urls::<C, O, UserAvatar>(obj_dept, user_ids).await
 }

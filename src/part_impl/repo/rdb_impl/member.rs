@@ -36,18 +36,12 @@ impl Run<FindMemberInfo<'_>> for HybRepo {
         oper: &FindMemberInfo<'_>,
     ) -> BaseRest<Option<MemberInfo>> {
         //
-        match oper {
-            //
-            FindMemberInfo::UserTeam { user_id, team_id } => {
-                //
-                submit_query!(
-                    self.rdb_core,
-                    find_info_by_user_id_and_team_id,
-                    user_id,
-                    team_id
-                )
-            }
-        }
+        submit_query!(
+            self.rdb_core,
+            find_info_by_user_id_and_team_id,
+            oper.user_id,
+            oper.team_id
+        )
     }
 }
 
@@ -87,13 +81,7 @@ impl Run<GetMemberInfo<'_, '_>> for HybRepo {
     #[instrument(level = "info", skip_all)]
     // Resolve one member info by id through a submit-query read path.
     async fn run(&self, oper: &GetMemberInfo<'_, '_>) -> BaseRest<MemberInfo> {
-        //
-        match oper {
-            //
-            GetMemberInfo::Id { id, incls } => {
-                submit_query!(self.rdb_core, get_info_by_id, id, incls)
-            }
-        }
+        submit_query!(self.rdb_core, get_info_by_id, oper.id, oper.incls)
     }
 }
 
@@ -209,18 +197,12 @@ where
         oper: &FindMemberInfo<'_>,
     ) -> BaseRest<Option<MemberInfo>> {
         //
-        match oper {
-            //
-            FindMemberInfo::UserTeam { user_id, team_id } => {
-                //
-                find_info_by_user_id_and_team_id(
-                    context.conn(),
-                    user_id,
-                    team_id,
-                )
-                .await
-            }
-        }
+        find_info_by_user_id_and_team_id(
+            context.conn(),
+            oper.user_id,
+            oper.team_id,
+        )
+        .await
     }
 }
 
@@ -241,13 +223,7 @@ where
         context: &mut RdbContext<L>,
         oper: &GetMemberInfo<'_, '_>,
     ) -> BaseRest<MemberInfo> {
-        //
-        match oper {
-            //
-            GetMemberInfo::Id { id, incls } => {
-                get_info_by_id(context.conn(), id, incls).await
-            }
-        }
+        get_info_by_id(context.conn(), oper.id, oper.incls).await
     }
 }
 

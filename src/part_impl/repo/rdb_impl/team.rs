@@ -51,18 +51,12 @@ impl Run<GetTeamInfo<'_>> for HybRepo {
     type Error = BaseError;
 
     #[instrument(level = "info", skip_all)]
-    // Resolve team read requests from ID-based variants and return team details.
+    // Resolve a team read request by ID and return its details.
     async fn run(
         &self,
         oper: &GetTeamInfo<'_>,
     ) -> Result<TeamInfo, Self::Error> {
-        //
-        match oper {
-            //
-            GetTeamInfo::Id { id } => {
-                submit_query!(self.rdb_core, get_info_by_id, id)
-            }
-        }
+        submit_query!(self.rdb_core, get_info_by_id, oper.id)
     }
 }
 
@@ -87,15 +81,9 @@ impl Run<UpdateTeam<'_>> for HybRepo {
     type Error = BaseError;
 
     #[instrument(level = "info", skip_all)]
-    // Route team mutation variants into the corresponding SQL update handlers.
+    // Route team mutation data into the corresponding SQL update handler.
     async fn run(&self, oper: &UpdateTeam<'_>) -> BaseRest<()> {
-        //
-        match oper {
-            //
-            UpdateTeam::Info { repl } => {
-                submit_query!(self.rdb_core, update_info, repl)
-            }
-        }
+        submit_query!(self.rdb_core, update_info, oper.repl)
     }
 }
 
@@ -137,13 +125,7 @@ where
         context: &mut RdbContext<L>,
         oper: &UpdateTeam<'_>,
     ) -> BaseRest<()> {
-        //
-        match oper {
-            //
-            UpdateTeam::Info { repl } => {
-                update_info(context.conn(), repl).await
-            }
-        }
+        update_info(context.conn(), oper.repl).await
     }
 }
 
@@ -164,13 +146,7 @@ where
         context: &mut RdbContext<L>,
         oper: &GetTeamInfoExcluded<'_>,
     ) -> BaseRest<TeamInfo> {
-        //
-        match oper {
-            //
-            GetTeamInfoExcluded::Id { id } => {
-                get_info_excluded(context.conn(), id).await
-            }
-        }
+        get_info_excluded(context.conn(), oper.id).await
     }
 }
 

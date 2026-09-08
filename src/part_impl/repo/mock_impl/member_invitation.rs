@@ -343,16 +343,10 @@ impl<'a> Step<GetMemberInvitationInfoExcluded<'a>, MockContext> for Mock {
         oper: &GetMemberInvitationInfoExcluded<'a>,
     ) -> BaseRest<MemberInvitationInfo> {
         //
-        match oper {
-            //
-            GetMemberInvitationInfoExcluded::Code { code } => {
-                //
-                get_member_invitation_info(
-                    &context.state,
-                    &GetMemberInvitationInfo::Code { code },
-                )
-            }
-        }
+        get_member_invitation_info(
+            &context.state,
+            &GetMemberInvitationInfo::Code { code: oper.code },
+        )
     }
 }
 

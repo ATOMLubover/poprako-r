@@ -2,7 +2,7 @@
 
 use poprako_orchestra::drive;
 
-use crate::part::repo::oper::online_user::{ListOnlineUserIds, MarkOnlineUser};
+use crate::part::repo::oper::online_user::{ListOnlineUserIds, MarkUserOnline};
 use crate::result::BaseError;
 
 /// Online-user repository operations.
@@ -11,6 +11,6 @@ use crate::result::BaseError;
 /// not participate in database transactions.
 #[drive(
     error = BaseError,
-    run(for<'a> MarkOnlineUser<'a>, for<'a> ListOnlineUserIds<'a>),
+    run(for<'a> MarkUserOnline<'a>, for<'a> ListOnlineUserIds<'a>),
 )]
 pub trait OnlineUserRepo {}

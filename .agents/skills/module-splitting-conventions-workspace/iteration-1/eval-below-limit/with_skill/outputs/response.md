@@ -1,3 +1,0 @@
-No split is warranted. The cohesive module is 430 lines, which is below the project’s strict 600-line limit, and no planned growth past that limit was identified. The module-splitting convention requires keeping a cohesive below-limit module intact rather than reorganizing it for tidiness.
-
-The proposed `helpers` and `operations` names are also forbidden catch-all module boundaries. I would stop here without touching production code. If a concrete change is expected to push the unsplit module to 600 lines or more, the next step would be to inventory its responsibilities and propose the fewest stable, business-named child modules—with exact item mappings and projected line counts—for confirmation before editing.

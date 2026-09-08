@@ -16,9 +16,12 @@ use poprako_orchestra::{AtLeast, Level, Run, Step};
 use time::OffsetDateTime;
 use tracing::instrument;
 
+use poprako_rdb_core::{RdbConn, RdbCore};
+
 use crate::model::read::proj::page::{
     PageInfo, PageRawIdentInfo, PageUnitScope,
 };
+use crate::model::write::page::PageRawIdentsRepl;
 use crate::part::nucl::ReptRead;
 use crate::part::repo::oper::page::{
     ApplyPageManifest, DeletePages, GetPageInfo, GetPageInfoExcluded,
@@ -41,6 +44,85 @@ use crate::part_impl::repo::rdb_impl::schema::t_page_raw_ident;
 use crate::result::{BaseError, BaseRest, accept};
 use crate::shared::RdbContext;
 use crate::shared::result::diesel as map_diesel;
+
+// Implements list raw ident infos.
+#[instrument(level = "info", skip_all)]
+async fn list_raw_ident_infos(
+    core: &RdbCore,
+    page_ids: &[&str],
+) -> BaseRest<Vec<PageRawIdentInfo>> {
+    //
+    if page_ids.is_empty() {
+        return accept(Vec::new());
+    }
+
+    let mut conn = core.get().await?;
+
+    let rows = t_page_raw_ident::table
+        .filter(t_page_raw_ident::f_page_id.eq_any(page_ids))
+        .select(PageRawIdentInfoRow::as_select())
+        .load::<PageRawIdentInfoRow>(&mut *conn)
+        .await
+        .map_err(map_diesel)?;
+
+    accept(rows.into_iter().map(PageRawIdentInfo::from).collect())
+}
+
+// Implements update raw idents.
+#[instrument(level = "info", skip_all)]
+async fn update_raw_idents(
+    conn: &mut RdbConn,
+    repl: &PageRawIdentsRepl<'_>,
+) -> BaseRest<()> {
+    //
+    let unnamed_ids = repl
+        .idents
+        .iter()
+        .filter(|(_, raw_ident)| raw_ident.is_none())
+        .map(|(page_id, _)| *page_id)
+        .collect::<Vec<_>>();
+
+    let entries = repl
+        .idents
+        .iter()
+        .filter_map(|(page_id, raw_ident)| {
+            //
+            Some(PageRawIdentEntryRow {
+                f_page_id: page_id,
+                f_raw_ident: (*raw_ident)?,
+            })
+        })
+        .collect::<Vec<_>>();
+
+    if !unnamed_ids.is_empty() {
+        //
+        diesel::delete(
+            t_page_raw_ident::table
+                .filter(t_page_raw_ident::f_page_id.eq_any(&unnamed_ids)),
+        )
+        .execute(conn)
+        .await
+        .map_err(map_diesel)?;
+    }
+
+    if !entries.is_empty() {
+        //
+        diesel::insert_into(t_page_raw_ident::table)
+            .values(&entries)
+            .on_conflict(t_page_raw_ident::f_page_id)
+            .do_update()
+            .set((
+                t_page_raw_ident::f_raw_ident
+                    .eq(excluded(t_page_raw_ident::f_raw_ident)),
+                t_page_raw_ident::f_updated_at.eq(OffsetDateTime::now_utc()),
+            ))
+            .execute(conn)
+            .await
+            .map_err(map_diesel)?;
+    }
+
+    accept(())
+}
 
 impl Run<GetPageInfo<'_>> for HybRepo {
     // Use base error for page read orchestration through the query dispatcher.
@@ -347,21 +429,7 @@ impl Run<ListPageRawIdentInfos<'_>> for HybRepo {
         &self,
         oper: &ListPageRawIdentInfos<'_>,
     ) -> BaseRest<Vec<PageRawIdentInfo>> {
-        //
-        if oper.page_ids.is_empty() {
-            return accept(Vec::new());
-        }
-
-        let mut conn = self.rdb_core.get().await?;
-
-        let rows = t_page_raw_ident::table
-            .filter(t_page_raw_ident::f_page_id.eq_any(oper.page_ids))
-            .select(PageRawIdentInfoRow::as_select())
-            .load::<PageRawIdentInfoRow>(&mut *conn)
-            .await
-            .map_err(map_diesel)?;
-
-        accept(rows.into_iter().map(PageRawIdentInfo::from).collect())
+        list_raw_ident_infos(&self.rdb_core, oper.page_ids).await
     }
 }
 
@@ -382,56 +450,6 @@ where
         context: &mut RdbContext<L>,
         oper: &UpdatePageRawIdents<'_>,
     ) -> BaseRest<()> {
-        //
-        let unnamed_ids = oper
-            .repl
-            .idents
-            .iter()
-            .filter(|(_, raw_ident)| raw_ident.is_none())
-            .map(|(page_id, _)| *page_id)
-            .collect::<Vec<_>>();
-
-        let entries = oper
-            .repl
-            .idents
-            .iter()
-            .filter_map(|(page_id, raw_ident)| {
-                //
-                Some(PageRawIdentEntryRow {
-                    f_page_id: page_id,
-                    f_raw_ident: (*raw_ident)?,
-                })
-            })
-            .collect::<Vec<_>>();
-
-        if !unnamed_ids.is_empty() {
-            //
-            diesel::delete(
-                t_page_raw_ident::table
-                    .filter(t_page_raw_ident::f_page_id.eq_any(&unnamed_ids)),
-            )
-            .execute(context.conn())
-            .await
-            .map_err(map_diesel)?;
-        }
-
-        if !entries.is_empty() {
-            //
-            diesel::insert_into(t_page_raw_ident::table)
-                .values(&entries)
-                .on_conflict(t_page_raw_ident::f_page_id)
-                .do_update()
-                .set((
-                    t_page_raw_ident::f_raw_ident
-                        .eq(excluded(t_page_raw_ident::f_raw_ident)),
-                    t_page_raw_ident::f_updated_at
-                        .eq(OffsetDateTime::now_utc()),
-                ))
-                .execute(context.conn())
-                .await
-                .map_err(map_diesel)?;
-        }
-
-        accept(())
+        update_raw_idents(context.conn(), oper.repl).await
     }
 }

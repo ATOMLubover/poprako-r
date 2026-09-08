@@ -1,27 +1,11 @@
-<!-- Parent: ../AGENTS.md -->
+# Documentation
 
-# docs
-
-Keep only operational documentation that reflects the checked-in implementation.
-Delete one-off plans, completed migration notes, stale backlogs, and generated
-artifacts without an active maintainer or regeneration path.
-
-## Current documents
-
-- `organization-transfer-readiness.md` tracks the repository and deployment
-  work required before and immediately after transfer to the official
-  organization.
-- `diesel-usage-audit.md` tracks active production query-shape, transaction,
-  locking, pagination, and database-concurrency findings.
-- `unit-save-api.md` defines the public page-unit save contract.
-- `unit-search-transform-api.md` defines Chapter Unit text preview and batch
-  transform contracts.
-- `swagger.json` is a checked-in generated artifact. Regenerate it with
-  `cargo run -p poprako-swagger > docs/swagger.json`; do not edit it by hand.
-
-Integration-test documentation belongs in `tests/integration-tests/` and must
-track the TypeScript suite there. Do not duplicate implementation plans here.
-
-- Source paths, command examples, and API contracts must point to active code.
-- Delete completed implementation checklists instead of preserving misleading
-  historical state.
+- Keep source paths, commands, and API contracts aligned with active code.
+- Before removing a plan, checklist, or generated artifact, check its purpose,
+  references, and maintenance or regeneration path within the requested scope.
+  Mark historical status clearly when the document still has a purpose.
+- Regenerate `swagger.json` from the repository root with
+  `cargo run -p poprako-swagger > docs/swagger.json` when the API contract
+  changes. Verify it with `sh scripts/ci-openapi-check.sh`.
+- Integration-test documentation lives beside its Deno suite under
+  `tests/integration-tests/`; follow `tests/AGENTS.md` for synchronization.

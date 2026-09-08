@@ -51,13 +51,7 @@ impl Run<GetAssignmentInvitationInfo<'_>> for HybRepo {
         &self,
         oper: &GetAssignmentInvitationInfo<'_>,
     ) -> BaseRest<AssignmentInvitationInfo> {
-        //
-        match oper {
-            //
-            GetAssignmentInvitationInfo::Id { id } => {
-                submit_query!(self.rdb_core, get_info_by_id, id)
-            }
-        }
+        submit_query!(self.rdb_core, get_info_by_id, oper.id)
     }
 }
 
@@ -97,13 +91,7 @@ where
         context: &mut RdbContext<L>,
         oper: &GetAssignmentInvitationInfo<'_>,
     ) -> BaseRest<AssignmentInvitationInfo> {
-        //
-        match oper {
-            //
-            GetAssignmentInvitationInfo::Id { id } => {
-                get_info_by_id(context.conn(), id).await
-            }
-        }
+        get_info_by_id(context.conn(), oper.id).await
     }
 }
 

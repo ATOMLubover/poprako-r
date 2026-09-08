@@ -437,13 +437,7 @@ where
         context: &mut RdbContext<L>,
         oper: &GetMemberInvitationInfoExcluded<'_>,
     ) -> BaseRest<MemberInvitationInfo> {
-        //
-        match oper {
-            //
-            GetMemberInvitationInfoExcluded::Code { code } => {
-                get_info_by_code_excluded(context.conn(), code).await
-            }
-        }
+        get_info_by_code_excluded(context.conn(), oper.code).await
     }
 }
 
