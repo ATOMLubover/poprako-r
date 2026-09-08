@@ -34,7 +34,7 @@ where
     ids.collect_chapters(&models);
 
     let snapshot = ObjViewSnapshot::load_with_comic_fallbacks::<C, R, O>(
-        repo, obj_dept, ids,
+        repo, obj_dept, ids, None,
     )
     .await?;
 

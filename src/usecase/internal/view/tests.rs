@@ -11,6 +11,9 @@ use time::OffsetDateTime;
 use url::Url;
 
 use super::{ObjViewIds, ObjViewSnapshot};
+
+mod pinned_chapter;
+
 use crate::model::read::proj::assignment::AssignmentInfo;
 use crate::model::read::proj::chapter::ChapterInfo;
 use crate::model::read::proj::comic::ComicInfo;
@@ -192,7 +195,17 @@ impl_obj_view!(PageImage, "page-list", "page-urls");
 impl_obj_view!(TeamAvatar, "team-list", "team-urls");
 impl_obj_view!(UserAvatar, "user-list", "user-urls");
 
-struct TestRepo;
+#[derive(Default)]
+struct TestRepo {
+    //
+    pinned_chapter_calls: Mutex<Vec<Vec<String>>>,
+}
+
+impl TestRepo {
+    fn pinned_chapter_calls(&self) -> Vec<Vec<String>> {
+        self.pinned_chapter_calls.lock().unwrap().clone()
+    }
+}
 
 impl<'a> Run<ListPinnedChapterInfos<'a>> for TestRepo {
     type Error = BaseError;
@@ -201,6 +214,11 @@ impl<'a> Run<ListPinnedChapterInfos<'a>> for TestRepo {
         &self,
         oper: &ListPinnedChapterInfos<'a>,
     ) -> Result<Vec<ChapterInfo>, Self::Error> {
+        self.pinned_chapter_calls
+            .lock()
+            .unwrap()
+            .push(oper.comic_ids.iter().map(|id| (*id).to_owned()).collect());
+
         let chapter_info = fallback_chapter_info();
 
         match oper.comic_ids.contains(&chapter_info.comic_id.as_str()) {
@@ -230,6 +248,8 @@ impl<'a> Run<ListFirstPageInfos<'a>> for TestRepo {
 async fn comic_uses_pinned_first_page_when_dedicated_cover_is_absent() {
     let obj_dept = TestObjDept::default();
 
+    let repo = TestRepo::default();
+
     obj_dept.omit("cover-list", "comic-1");
 
     let assignment_info = assignment_info();
@@ -240,7 +260,7 @@ async fn comic_uses_pinned_first_page_when_dedicated_cover_is_absent() {
 
     let snapshot =
         ObjViewSnapshot::load_with_comic_fallbacks::<TestContext, _, _>(
-            &TestRepo, &obj_dept, ids,
+            &repo, &obj_dept, ids, None,
         )
         .await
         .unwrap();
@@ -265,6 +285,8 @@ async fn comic_uses_pinned_first_page_when_dedicated_cover_is_absent() {
 async fn comic_prefers_dedicated_cover_over_pinned_first_page() {
     let obj_dept = TestObjDept::default();
 
+    let repo = TestRepo::default();
+
     let assignment_info = assignment_info();
 
     let mut ids = ObjViewIds::default();
@@ -273,7 +295,7 @@ async fn comic_prefers_dedicated_cover_over_pinned_first_page() {
 
     let snapshot =
         ObjViewSnapshot::load_with_comic_fallbacks::<TestContext, _, _>(
-            &TestRepo, &obj_dept, ids,
+            &repo, &obj_dept, ids, None,
         )
         .await
         .unwrap();

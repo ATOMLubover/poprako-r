@@ -19,12 +19,12 @@ use crate::part::repo::chapter::ChapterRepo;
 use crate::part::repo::comic::ComicRepo;
 use crate::part::repo::member::MemberRepo;
 use crate::part::repo::oper::assignment::ListAssignmentInfos;
-use crate::part::repo::oper::chapter::ListPinnedChapterInfos;
 use crate::part::repo::oper::comic::ListComicInfos;
 use crate::part::repo::page::PageRepo;
 use crate::part::repo::workset::WorksetRepo;
 use crate::result::{BaseError, BaseRest, ExpectedVariant, accept};
 use crate::usecase::internal::member::MemberLoader;
+use crate::usecase::internal::page::PinnedChapterSnapshot;
 use crate::usecase::internal::util::LoadMode;
 use crate::usecase::internal::view::{ObjViewIds, ObjViewSnapshot};
 use crate::value::assignment::AssignmentInclOpt;
@@ -87,24 +87,24 @@ where
 
     // NOTE: `with` cannot be executed elegantly by repo layer,
     // so we have to handle it in usecase layer.
-    let pinned_chapter_infos = if with_pinned_chapter {
+    let pinned_chapter_snapshot = match (with_pinned_chapter,) {
         //
-        ListPinnedChapterInfos {
-            comic_ids: &comic_ids,
-        }
-        .run_on(repo)
-        .await?
-        .into_iter()
-        .map(|chapter_info| (chapter_info.comic_id.clone(), chapter_info))
-        .collect::<HashMap<_, _>>()
-    } else {
-        HashMap::new()
+        (true,) => Some(
+            PinnedChapterSnapshot::load_from_comics(repo, &comic_ids).await?,
+        ),
+
+        (false,) => None,
     };
+
+    let pinned_chapter_infos = pinned_chapter_snapshot
+        .as_ref()
+        .map(PinnedChapterSnapshot::infos_by_comic_id);
 
     let pinned_chapter_assignment_infos = if with_pinned_chapter_assignment {
         //
         let chapter_ids = pinned_chapter_infos
-            .values()
+            .into_iter()
+            .flat_map(|pinned_chapter_infos| pinned_chapter_infos.values())
             .map(|chapter_info| chapter_info.id.as_str())
             .collect::<Vec<_>>();
 
@@ -136,7 +136,11 @@ where
 
     obj_view_ids.collect_comics(&comic_infos);
 
-    obj_view_ids.collect_chapters(pinned_chapter_infos.values());
+    obj_view_ids.collect_chapters(
+        pinned_chapter_infos
+            .into_iter()
+            .flat_map(|infos| infos.values()),
+    );
 
     obj_view_ids.collect_assignments(
         pinned_chapter_assignment_infos.values().flatten(),
@@ -147,13 +151,16 @@ where
             repo,
             obj_dept,
             obj_view_ids,
+            pinned_chapter_snapshot.as_ref(),
         )
         .await?;
 
     accept(build_list_val(
         &obj_view_snapshot,
         comic_infos,
-        pinned_chapter_infos,
+        pinned_chapter_snapshot
+            .map(PinnedChapterSnapshot::into_infos_by_comic_id)
+            .unwrap_or_default(),
         pinned_chapter_assignment_infos,
     ))
 }

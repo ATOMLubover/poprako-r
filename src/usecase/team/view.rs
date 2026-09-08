@@ -2,16 +2,16 @@
 
 use std::collections::HashMap;
 
-use poprako_orchestra::{Context, OperRun as _};
+use poprako_orchestra::Context;
 
 use poprako_obj_dept::ObjDeptView;
-use poprako_obj_dept::model::url::{ObjUrlSpec, ObjUrls};
-use poprako_obj_dept::oper::{GenObjUrls, ListObjMetas};
+use poprako_obj_dept::model::url::ObjUrls;
 
 use crate::data::view::team::TeamInfoView;
 use crate::model::read::proj::team::TeamInfo;
 use crate::part::obj_dept::TeamAvatar;
-use crate::result::{BaseError, BaseRest, accept};
+use crate::result::{BaseRest, accept};
+use crate::usecase::internal::view::load_obj_urls;
 
 /// Resolves one team model with its avatar origin and thumbnail URLs.
 pub async fn team_info_view<C, O>(
@@ -84,27 +84,5 @@ where
     C: Context,
     O: ObjDeptView<TeamAvatar, C> + Sync,
 {
-    if team_ids.is_empty() {
-        return accept(HashMap::new());
-    }
-
-    let mut team_ids = team_ids.to_vec();
-
-    team_ids.sort_unstable();
-
-    team_ids.dedup();
-
-    let obj_metas = ListObjMetas::<TeamAvatar>::new(&team_ids)
-        .run_on(obj_dept)
-        .await
-        .map_err(BaseError::from)?;
-
-    let obj_url_spec = ObjUrlSpec::default().with_origin().with_thumbnail();
-
-    let avatar_urls = GenObjUrls::<TeamAvatar>::new(&obj_metas, obj_url_spec)
-        .run_on(obj_dept)
-        .await
-        .map_err(BaseError::from)?;
-
-    accept(avatar_urls)
+    load_obj_urls::<C, O, TeamAvatar>(obj_dept, team_ids).await
 }
