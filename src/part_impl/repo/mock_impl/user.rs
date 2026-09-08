@@ -173,9 +173,7 @@ impl<'a> Run<GetUserInfo<'a>> for Mock {
         // Lock state immutably for read-only user info lookup.
         let state = self.state.lock().unwrap();
 
-        match oper {
-            GetUserInfo::Id { id } => get_user_info(&state, id),
-        }
+        get_user_info(&state, oper.id)
     }
 }
 
@@ -194,9 +192,7 @@ impl<'a> Run<GetUserCredential<'a>> for Mock {
         // Lock state immutably for safe credential read.
         let state = self.state.lock().unwrap();
 
-        match oper {
-            GetUserCredential::Qid { qid } => get_user_credential(&state, qid),
-        }
+        get_user_credential(&state, oper.qid)
     }
 }
 
@@ -212,9 +208,7 @@ impl<'a> Run<FindUserInfo<'a>> for Mock {
         // Lock state immutably for optional find-by-qid.
         let state = self.state.lock().unwrap();
 
-        match oper {
-            FindUserInfo::Qid { qid } => accept(find_user_info(&state, qid)),
-        }
+        accept(find_user_info(&state, oper.qid))
     }
 }
 
@@ -266,13 +260,7 @@ impl<'a> Step<FindUserInfo<'a>, MockContext> for Mock {
         context: &mut MockContext,
         oper: &FindUserInfo<'a>,
     ) -> BaseRest<Option<UserInfo>> {
-        //
-        match oper {
-            //
-            FindUserInfo::Qid { qid } => {
-                accept(find_user_info(&context.state, qid))
-            }
-        }
+        accept(find_user_info(&context.state, oper.qid))
     }
 }
 
@@ -308,10 +296,7 @@ impl<'a> Step<GetUserInfoExcluded<'a>, MockContext> for Mock {
         context: &mut MockContext,
         oper: &GetUserInfoExcluded<'a>,
     ) -> BaseRest<UserInfo> {
-        //
-        match oper {
-            GetUserInfoExcluded::Id { id } => get_user_info(&context.state, id),
-        }
+        get_user_info(&context.state, oper.id)
     }
 }
 

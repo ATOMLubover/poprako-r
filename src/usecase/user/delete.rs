@@ -63,7 +63,7 @@ where
 
     nucl.coord(async move |context| {
         //
-        GetUserInfoExcluded::Id { id: &id }
+        GetUserInfoExcluded { id: &id }
             .step_on(repo, context)
             .await?;
 

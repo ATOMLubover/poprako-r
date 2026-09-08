@@ -80,7 +80,7 @@ where
             //
 
             let invitation_info =
-                GetMemberInvitationInfoExcluded::Code { code: &instr.code }
+                GetMemberInvitationInfoExcluded { code: &instr.code }
                     .step_on(repo, context)
                     .await?;
 
@@ -194,9 +194,8 @@ where
     R: UserRepo<C>,
     A: TokenAuth + Sync,
 {
-    let user_credential = GetUserCredential::Qid { qid: &instr.qid }
-        .run_on(repo)
-        .await?;
+    let user_credential =
+        GetUserCredential { qid: &instr.qid }.run_on(repo).await?;
 
     if !UserComplex::verify_password(
         &instr.password,

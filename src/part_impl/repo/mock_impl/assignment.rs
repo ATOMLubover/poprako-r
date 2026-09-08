@@ -450,13 +450,7 @@ impl Step<ListAssignmentInfosExcluded<'_>, MockContext> for Mock {
         context: &mut MockContext,
         oper: &ListAssignmentInfosExcluded<'_>,
     ) -> Result<Vec<AssignmentInfo>, Self::Error> {
-        //
-        match oper {
-            //
-            ListAssignmentInfosExcluded::Chapter { chapter_id } => {
-                accept(list_infos_excluded(&context.state, chapter_id))
-            }
-        }
+        accept(list_infos_excluded(&context.state, oper.chapter_id))
     }
 }
 

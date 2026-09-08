@@ -23,16 +23,9 @@ fn get_info(
     state
         .assignment_invitations
         .iter()
-        .find(|info| match oper {
-            GetAssignmentInvitationInfo::Id { id } => info.id == *id,
-        })
+        .find(|info| info.id == oper.id)
         .cloned()
-        .ok_or_else(|| match oper {
-            //
-            GetAssignmentInvitationInfo::Id { .. } => {
-                expected("error-invitation-not-found")
-            }
-        })
+        .ok_or_else(|| expected("error-invitation-not-found"))
 }
 
 // Internal implementation of `list_infos`.

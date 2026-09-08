@@ -63,7 +63,7 @@ where
     R: UserRepo<C>,
     O: ObjDeptView<UserAvatar, C> + Sync,
 {
-    let user_info = GetUserInfo::Id { id: &id }.run_on(repo).await?;
+    let user_info = GetUserInfo { id: &id }.run_on(repo).await?;
 
     user_info_view(obj_dept, user_info).await
 }
@@ -182,9 +182,9 @@ where
         });
     }
 
-    let user_info = GetUserInfo::Id { id: &user_id }.run_on(repo).await?;
+    let user_info = GetUserInfo { id: &user_id }.run_on(repo).await?;
 
-    let user_credential = GetUserCredential::Qid {
+    let user_credential = GetUserCredential {
         qid: &user_info.qid,
     }
     .run_on(repo)
@@ -276,7 +276,7 @@ where
     let obj_slot = nucl
         .coord(async move |context| {
             //
-            GetUserInfoExcluded::Id { id: &token.user_id }
+            GetUserInfoExcluded { id: &token.user_id }
                 .step_on(repo, context)
                 .await?;
 

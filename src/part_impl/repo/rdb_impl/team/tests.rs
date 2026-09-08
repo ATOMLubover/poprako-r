@@ -67,13 +67,13 @@ pub async fn team_roundtrip_uses_testcontainer(shared: RdbCore) {
         description: "updated".into(),
     };
 
-    repo.run(&UpdateTeam::Info { repl: &team_repl })
+    repo.run(&UpdateTeam { repl: &team_repl })
         .await
         .ok()
         .unwrap();
 
     let team_info = repo
-        .run(&GetTeamInfo::Id {
+        .run(&GetTeamInfo {
             id: &team_fixture.team_entry.id,
         })
         .await

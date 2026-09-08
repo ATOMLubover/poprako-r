@@ -27,7 +27,7 @@ pub async fn notify_invitor<C, R>(
     C: Context,
     R: TeamRepo<C> + SystemMailRepo + Sync,
 {
-    let team_info = GetTeamInfo::Id { id: team_id }.run_on(repo).await;
+    let team_info = GetTeamInfo { id: team_id }.run_on(repo).await;
 
     let Ok(team_info) = team_info else {
         //

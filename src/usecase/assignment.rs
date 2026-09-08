@@ -351,7 +351,7 @@ where
                 .run_on(repo)
                 .await?;
 
-            let member_info = FindMemberInfo::UserTeam {
+            let member_info = FindMemberInfo {
                 user_id: &token.user_id,
                 team_id: &team_id,
             }
@@ -411,7 +411,7 @@ where
         AssignmentListSpec::User { owner_id, .. } => {
             //
             let user_info =
-                GetUserInfo::Id { id: &token.user_id }.run_on(repo).await?;
+                GetUserInfo { id: &token.user_id }.run_on(repo).await?;
 
             AssignmentPermComplex::ensure_user_can_list_user_infos(
                 &UserAssignmentListAccess::SuperAdmin {

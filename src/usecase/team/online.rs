@@ -31,7 +31,7 @@ where
     C: Context,
     R: MemberRepo<C> + UserRepo<C> + OnlineUserRepo + Sync,
 {
-    let member_info = FindMemberInfo::UserTeam {
+    let member_info = FindMemberInfo {
         user_id: &token.user_id,
         team_id: &team_id,
     }
@@ -73,7 +73,7 @@ where
     C: Context,
     R: MemberRepo<C> + OnlineUserRepo + Sync,
 {
-    let member_info = FindMemberInfo::UserTeam {
+    let member_info = FindMemberInfo {
         user_id: &token.user_id,
         team_id: &team_id,
     }

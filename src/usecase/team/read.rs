@@ -38,7 +38,7 @@ where
     R: TeamRepo<C>,
     O: ObjDeptView<TeamAvatar, C> + Sync,
 {
-    let team_info = GetTeamInfo::Id { id: &id }.run_on(repo).await?;
+    let team_info = GetTeamInfo { id: &id }.run_on(repo).await?;
 
     team_info_view(obj_dept, team_info).await
 }
@@ -86,8 +86,7 @@ where
 
     if instr.user_id.is_none() {
         //
-        let user_info =
-            GetUserInfo::Id { id: &token.user_id }.run_on(repo).await?;
+        let user_info = GetUserInfo { id: &token.user_id }.run_on(repo).await?;
 
         TeamPermComplex::ensure_user_can_list_infos(&user_info)?;
     }

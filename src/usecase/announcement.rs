@@ -50,7 +50,7 @@ where
 {
     let announcement_list_spec = Into::<AnnouncementListSpec>::into(instr);
 
-    let member_info = FindMemberInfo::UserTeam {
+    let member_info = FindMemberInfo {
         user_id: &token.user_id,
         team_id: &announcement_list_spec.team_id,
     }
@@ -90,7 +90,7 @@ where
     C: Context,
     R: AnnouncementRepo<C> + MemberRepo<C> + Sync,
 {
-    let member_info = FindMemberInfo::UserTeam {
+    let member_info = FindMemberInfo {
         user_id: &token.user_id,
         team_id: &instr.team_id,
     }
@@ -140,7 +140,7 @@ where
     let announcement_info =
         GetAnnouncementInfo { id: &instr.id }.run_on(repo).await?;
 
-    let member_info = FindMemberInfo::UserTeam {
+    let member_info = FindMemberInfo {
         user_id: &token.user_id,
         team_id: &announcement_info.team_id,
     }
@@ -197,7 +197,7 @@ where
     let announcement_info =
         GetAnnouncementInfo { id: &id }.run_on(repo).await?;
 
-    let member_info = FindMemberInfo::UserTeam {
+    let member_info = FindMemberInfo {
         user_id: &token.user_id,
         team_id: &announcement_info.team_id,
     }

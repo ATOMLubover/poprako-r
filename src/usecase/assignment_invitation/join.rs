@@ -82,7 +82,7 @@ where
     let assignment_info = nucl
         .coord(async move |context| {
             //
-            let current_user_info = GetUserInfoExcluded::Id {
+            let current_user_info = GetUserInfoExcluded {
                 id: &current_user_id,
             }
             .step_on(repo, context)
@@ -120,7 +120,7 @@ where
             .step_on(repo, context)
             .await?;
 
-            let member_info = FindMemberInfo::UserTeam {
+            let member_info = FindMemberInfo {
                 user_id: &current_user_id,
                 team_id: &workset_info.team_id,
             }

@@ -54,29 +54,23 @@ pub enum ListMemberInfos<'a> {
 /// Finds a single member by user and team.
 #[derive(Oper)]
 #[oper(output = Option<MemberInfo>)]
-pub enum FindMemberInfo<'a> {
+pub struct FindMemberInfo<'a> {
     //
-    /// Finds by user ID and team ID.
-    UserTeam {
-        /// The user ID.
-        user_id: &'a str,
-        /// The team ID.
-        team_id: &'a str,
-    },
+    /// The user ID.
+    pub user_id: &'a str,
+    /// The team ID.
+    pub team_id: &'a str,
 }
 
 /// Retrieves a single member's info by ID with optional includes.
 #[derive(Oper)]
 #[oper(output = MemberInfo)]
-pub enum GetMemberInfo<'a, 'b> {
+pub struct GetMemberInfo<'a, 'b> {
     //
-    /// Retrieves by member ID.
-    Id {
-        /// The member ID.
-        id: &'a str,
-        /// Which relations to include in the response.
-        incls: &'b [MemberInclOpt],
-    },
+    /// The member ID.
+    pub id: &'a str,
+    /// Which relations to include in the response.
+    pub incls: &'b [MemberInclOpt],
 }
 
 /// Locks and lists every member of one active team.

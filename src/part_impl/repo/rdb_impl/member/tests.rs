@@ -81,7 +81,7 @@ pub async fn member_roundtrip_uses_testcontainer(shared: RdbCore) {
     .unwrap();
 
     let touched_user_info = repo
-        .run(&GetUserInfo::Id {
+        .run(&GetUserInfo {
             id: &team_fixture.user_entry.id,
         })
         .await
@@ -89,7 +89,7 @@ pub async fn member_roundtrip_uses_testcontainer(shared: RdbCore) {
         .unwrap();
 
     let touched_member_info = repo
-        .run(&GetMemberInfo::Id {
+        .run(&GetMemberInfo {
             id: &member_entry.id,
             incls: &[],
         })
@@ -149,7 +149,7 @@ pub async fn member_roundtrip_uses_testcontainer(shared: RdbCore) {
     .unwrap();
 
     let member_info = repo
-        .run(&GetMemberInfo::Id {
+        .run(&GetMemberInfo {
             id: &member_entry.id,
             incls: &[MemberInclOpt::User],
         })

@@ -23,13 +23,9 @@ pub struct ListAssignmentInvitationInfos<'a> {
 /// Gets an assignment invitation that must exist.
 #[derive(Oper)]
 #[oper(output = AssignmentInvitationInfo)]
-pub enum GetAssignmentInvitationInfo<'a> {
-    //
-    /// Gets by invitation identifier.
-    Id {
-        /// Invitation identifier.
-        id: &'a str,
-    },
+pub struct GetAssignmentInvitationInfo<'a> {
+    /// Invitation identifier.
+    pub id: &'a str,
 }
 
 /// Gets an assignment invitation that must exist (with exclusive lock).

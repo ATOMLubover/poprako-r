@@ -113,21 +113,19 @@ fn update_team(state: &mut MockState, oper: &UpdateTeam<'_>) -> BaseRest<()> {
     //
     // Internal implementation detail.
     // Internal implementation detail.
-    let UpdateTeam::Info { repl } = oper;
-
-    if state.deleted_team_ids.contains(&repl.id) {
+    if state.deleted_team_ids.contains(&oper.repl.id) {
         return Err(expected("error-team-not-found"));
     }
 
     let team_info = state
         .teams
         .iter_mut()
-        .find(|team_info| team_info.id == repl.id)
+        .find(|team_info| team_info.id == oper.repl.id)
         .ok_or_else(|| expected("error-team-not-found"))?;
 
-    team_info.name = repl.name.clone();
+    team_info.name = oper.repl.name.clone();
 
-    team_info.description = repl.description.clone();
+    team_info.description = oper.repl.description.clone();
 
     team_info.updated_at = now();
 
@@ -164,9 +162,7 @@ impl<'a> Run<GetTeamInfo<'a>> for Mock {
         // Internal implementation detail.
         let state = self.state.lock().unwrap();
 
-        match oper {
-            GetTeamInfo::Id { id } => get_team_info(&state, id),
-        }
+        get_team_info(&state, oper.id)
     }
 }
 
@@ -264,10 +260,7 @@ impl<'a> Step<GetTeamInfoExcluded<'a>, MockContext> for Mock {
         context: &mut MockContext,
         oper: &GetTeamInfoExcluded<'a>,
     ) -> BaseRest<TeamInfo> {
-        //
-        match oper {
-            GetTeamInfoExcluded::Id { id } => get_team_info(&context.state, id),
-        }
+        get_team_info(&context.state, oper.id)
     }
 }
 
