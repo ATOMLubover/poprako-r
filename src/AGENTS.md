@@ -1,14 +1,10 @@
-<!-- Parent: ../AGENTS.md -->
+# Server module map
 
-# src
+Use `src/lib.rs` for the authoritative module graph. HTTP delivery lives in
+`api/http`, domain orchestration in `usecase`, pure rules in `complex`,
+persisted models in `model`, DTOs in `data`, ports in `part`, adapters in
+`part_impl`, background scheduling in `extra`, and shared domain types in
+`value`. `harn.rs` stores the already-composed application parts.
 
-The root `AGENTS.md` governs this tree. `src/lib.rs` is the authoritative
-module graph: HTTP boundaries live in `api/http`, orchestration in `usecase`,
-pure rules in `complex`, persisted models in `model`, DTOs in `data`, ports in
-`part`, production adapters in `part_impl`, and shared enums/value objects in
-`value`.
-
-Keep transaction ownership in use cases through `Nucl::coord`. Do not add
-database migration execution to application startup. For changed behavior,
-follow the relevant project-local skills and update focused tests before the
-broader CI entry points.
+Read the root skill routing for the affected layer. Workspace utility and
+infrastructure crates have their own module graphs in their crate roots.

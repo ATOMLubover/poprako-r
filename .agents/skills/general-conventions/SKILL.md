@@ -1,73 +1,48 @@
 ---
 name: general-conventions
-description: Current PopRaKo Rust architecture, naming, construction, and repository-wide source conventions. Use for every creation, refactor, move, or review of Rust code under src/.
+description: Apply PopRaKo Rust naming, construction, imports, and source conventions when creating, changing, moving, or reviewing Rust in any workspace crate. Server layer rules apply only to the server crate.
 ---
 
-# Active Rust conventions
+# Rust conventions
 
-## Sources of truth
+## Scope and sources
 
-- Treat `src/lib.rs` as the authoritative module graph and read neighboring
-  code before selecting names, visibility, imports, or test placement.
-- Apply this skill only to the active `api`, `complex`, `config`, `data`,
-  `extra`, `harn`, `model`, `part`, `part_impl`, `result`, `shared`, `usecase`,
-  `util`, and `value` architecture.
-- Treat `fmt/*/FORMAT.md` and `sh fmt/run-check.sh` as authoritative for
-  mechanical layout, imports, identifiers, macro placement, and module
-  dependencies. Do not reproduce those checkers manually in a skill.
+Read the affected crate root and nearby code before choosing names, visibility,
+or imports. `Cargo.toml` defines workspace membership; `src/lib.rs` defines the
+server module graph. Infrastructure crates keep their own contracts.
 
-## Layer and type names
+Mechanical rules live in repository-relative `linters-extra/*/FORMAT.md`;
+the runner is `sh linters-extra/run-check.sh`. Follow the root AGENTS rules
+for when to run it. Do not reproduce its checks in skills.
 
-- Persisted projections live under `model::read`; mutation inputs and
-  reservations live under `model::write`.
-- Request DTOs live under `data::instr` and end in `Instr`.
-- Direct response values live under `data::val` and end in `Val`.
-- Model `*Info` projections exposed over the API live under `data::view` and
-  end in `InfoView`; other nested response structures end in `View`.
-- Repository operation descriptors live under `part::repo::oper` and carry
-  domain-qualified names. Domain repository capability traits live directly
-  under `part::repo`.
-- Use specific local names such as `comic_info`, `chapter_entry`,
+## Types and construction
+
+- Server persisted projections and list specs live in `model::read`;
+  entries, modifications, replacements, and reservations in `model::write`.
+- For DTO roles and suffixes, read
+  [data-dto-boundaries](../data-dto-boundaries/SKILL.md) when changing DTOs.
+- Use specific domain locals such as `comic_info`, `chapter_entry`,
   `cover_reservation`, and `system_mail_infos`.
-
-## Construction and flow
-
-- Bind domain payloads such as entries, replacements, specs, and DTOs before
-  using them. Construct one-shot Orchestra operation descriptors directly in
-  the consuming `run_on` or `step_on` call as required by `fmt/`.
-- Keep `complex` pure: it receives already-loaded concrete models and never
-  imports Orchestra, repositories, repository operations, or Prom operations.
-- Put reusable multi-operation read chains behind associated methods on a
-  `*Loader` under private `usecase::internal`. Name model-returning methods
-  with the model suffix, such as `load_info_from_*` or `load_infos_from_*`.
-  Do not wrap a single repository operation in a loader.
-- Pass a loaded model instead of repeating identifiers already present on the
-  model. A loader must convert a missing required model into an error before
-  calling pure rules; do not pass `Option<Model>` into permission helpers.
-- Use guard clauses, `match`, and `let ... else`; do not introduce
-  `if ... else`.
-- Bind the value returned by a transaction before converting or returning it.
-  For unit output, await the transaction and then return `accept(())` or the
-  nearby equivalent.
+- Bind domain payloads, including DTOs and write models, before passing them
+  to operations. Construct one-shot Orchestra descriptors inline in the
+  consuming `run_on` or `step_on` call.
+- For transaction ownership, pure rules, and reusable read chains, read
+  [usecase-boundaries](../usecase-boundaries/SKILL.md) when touching those areas.
 - Keep comments and public documentation in English and about current
-  behavior. Remove commentary about retired designs instead of preserving it
-  in active modules.
-- Keep Rust files below the repository limit and extract focused sibling
-  modules using `foo.rs` plus `foo/`; do not create `mod.rs`.
+  behavior; remove retired-design commentary from active code.
+- Follow the root control-flow, statement spacing, and file-length rules.
+  Use `foo.rs` plus `foo/` for modules. Read
+  [module-splitting-conventions](../module-splitting-conventions/SKILL.md)
+  before extracting modules for length compliance.
+- Apply [struct-field-blank-lines](../struct-field-blank-lines/SKILL.md)
+  when creating, changing, or reviewing named-field structs.
 
-## Public contracts and macros
+## Public contracts and imports
 
-- Keep implementation details private and make a `pub` item a deliberate
-  contract.
-- Document every public contract and follow the checked source-comment rules.
-- Import derive and attribute macros explicitly and call them by their bare
-  names. Invoke tracing event macros through `tracing::...!` with structured
-  fields.
+- Keep implementation details private; document every public contract.
+- Import derive and attribute macros explicitly and use their bare names.
+  Tracing event macros use `tracing::...!`; detailed instrumentation rules
+  belong to [tracing-usage-spec](../tracing-usage-spec/SKILL.md).
 - Import traits used only for method resolution as `as _`.
-
-## Review
-
-- [ ] Active paths and role suffixes match the current module graph.
-- [ ] Domain payloads are named and bound; one-shot opers remain inline.
-- [ ] The change does not introduce retired architecture terminology.
-- [ ] The project formatter/checker suite is the mechanical source of truth.
+- Use generated Diesel table modules through their full local path, never
+  through a `schema::` alias.

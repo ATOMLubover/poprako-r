@@ -1,6 +1,6 @@
 ---
 name: usecase-boundaries
-description: Enforce caller-independent PopRaKo use-case boundaries. Use whenever creating, moving, reviewing, or auditing use cases, repository operations, HTTP handlers, effect consumers, Prom task handlers, schedulers, actors, or other code that invokes domain behavior.
+description: Enforce domain-oriented use cases, transaction ownership, loaders, and repository contracts when changing or reviewing use cases or HTTP, effect, Prom, scheduler, and actor delivery boundaries.
 ---
 
 # Use-case boundaries
@@ -29,13 +29,35 @@ Do not introduce caller-oriented use-case modules such as `usecase::effect`,
 - Accept domain inputs such as identifiers, values, and instructions. Do not
   accept queue messages or effect event payloads merely because one current
   caller uses them.
-- Keep pure computation in `complex`; keep port orchestration, transaction
-  boundaries, and permission checks in `usecase`.
+- Keep pure computation and permission helpers in `complex`; keep port
+  orchestration, transaction ownership, and permission enforcement in `usecase`.
+- Pure rules receive already-loaded concrete models. They must not import
+  Orchestra, repository traits/operations, or Prom operations/tasks, or drive
+  transactions. Do not pass `Option<Model>` into permission helpers.
+- Keep business permission checks out of HTTP handlers and RDB adapters;
+  use cases enforce them through pure domain helpers where appropriate.
 
 For example, a background message that attempts a chapter stage transition
 must call a chapter-stage use case. An event that creates system mail must call
 a system-mail use case. The message or event type is decoded by its delivery
 adapter before the use case is called.
+
+## Transactions and reusable reads
+
+- A use case owns its transaction through `Nucl::coord`. Use `.run_on(repo)`
+  for independent operations and `.step_on(repo, context)` inside that
+  transaction, with the required context and isolation-level capabilities.
+- Bind transaction output before returning or converting it. For unit output,
+  await the transaction, then return `accept(())` or the nearby equivalent.
+- Put reusable chains of at least two repository reads behind associated
+  methods on `*Loader` under private `usecase::internal`. Do not wrap a single
+  operation in a loader. Model-returning methods include the model suffix,
+  such as `load_info_from_*` or `load_infos_from_*`.
+- Pass the repository independently from `LoadMode`. Use `LoadMode::Run`
+  only when every operation supports Run, and `LoadMode::Step` with the
+  caller-owned context when every operation supports Step.
+- Pass loaded models instead of repeating their identifiers. A loader must
+  classify a missing required model as an error before invoking pure rules.
 
 ## Delivery-adapter responsibilities
 

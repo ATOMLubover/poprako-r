@@ -14,7 +14,7 @@ use crate::model::shared::user::UserToken;
 use crate::part::repo::member::MemberRepo;
 use crate::part::repo::online_user::OnlineUserRepo;
 use crate::part::repo::oper::member::FindMemberInfo;
-use crate::part::repo::oper::online_user::{ListOnlineUserIds, MarkOnlineUser};
+use crate::part::repo::oper::online_user::{ListOnlineUserIds, MarkUserOnline};
 use crate::part::repo::oper::user::UpdateUser;
 use crate::part::repo::user::UserRepo;
 use crate::result::{BaseError, BaseRest, ExpectedVariant, accept};
@@ -52,7 +52,7 @@ where
         .run_on(repo)
         .await?;
 
-    MarkOnlineUser {
+    MarkUserOnline {
         team_id: &team_id,
         user_id: &token.user_id,
     }

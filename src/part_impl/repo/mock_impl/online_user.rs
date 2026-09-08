@@ -4,20 +4,20 @@ use std::time::{Duration, Instant};
 
 use poprako_orchestra::Run;
 
-use crate::part::repo::oper::online_user::{ListOnlineUserIds, MarkOnlineUser};
+use crate::part::repo::oper::online_user::{ListOnlineUserIds, MarkUserOnline};
 use crate::part_impl::repo::mock_impl::Mock;
 use crate::result::{BaseError, BaseRest, accept};
 
 // Keep mock lease behavior aligned with the production memory adapter.
 const ONLINE_USER_TTL: Duration = Duration::from_mins(10);
 
-impl Run<MarkOnlineUser<'_>> for Mock {
+impl Run<MarkUserOnline<'_>> for Mock {
     // Keep mock failures on the shared repository error channel.
     // Defines the adapter error exposed by this operation.
     type Error = BaseError;
 
     // Refresh one user's online lease in the mock repository.
-    async fn run(&self, oper: &MarkOnlineUser<'_>) -> BaseRest<()> {
+    async fn run(&self, oper: &MarkUserOnline<'_>) -> BaseRest<()> {
         //
         let expires_at = Instant::now() + ONLINE_USER_TTL;
 
