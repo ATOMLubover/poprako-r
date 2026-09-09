@@ -93,14 +93,22 @@ pub use crate::api::http::state::AppHarn;
 pub use crate::config::AppConfig;
 pub use crate::config::http::HttpConfig;
 pub use crate::config::image::ImageConfig;
-pub use crate::extra::sched::Sched;
+pub use crate::extra::sched::{Sched, SchedDesc};
 pub use crate::harn::Harn;
 pub use crate::log::init_log;
 pub use crate::part::nucl::{ReptRead, Serial};
 pub use crate::part_impl::auth::jwt_impl::JwtAuth;
 pub use crate::part_impl::effect::async_impl::AsyncEffectDevelop;
+pub use crate::part_impl::effect::async_impl::actor::{
+    EffectActor, EffectActorDesc,
+};
 pub use crate::part_impl::nucl::rdb_impl::{HybNucl, RdbNucl};
-pub use crate::part_impl::obj_dept::{NormObjDept, new_obj_dept};
-pub use crate::part_impl::prom::rdb_impl::{RdbProm, new as new_prom};
+pub use crate::part_impl::obj_dept::r2_impl::R2ObjDeptPool;
+pub use crate::part_impl::obj_dept::{NormObjDept, RdbObjDeptProm};
+pub use crate::part_impl::prom::rdb_impl::RdbProm;
+pub use crate::part_impl::prom::rdb_impl::actor::base::{
+    RdbPromActor, RdbPromActorDesc,
+};
+pub use crate::part_impl::prom::rdb_impl::repo::RdbPromRepo;
 pub use crate::part_impl::repo::HybRepo;
 pub use crate::shared::RdbContext;

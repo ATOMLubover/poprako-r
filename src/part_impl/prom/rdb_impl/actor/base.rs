@@ -7,105 +7,125 @@
 //! [`actor`]: crate::part_impl::prom::rdb_impl::actor
 //! [`pool`]: crate::part_impl::prom::rdb_impl::actor::pool
 
+use poprako_orchestra::Nucl;
 use tokio_util::sync::CancellationToken;
 use tracing::instrument;
 
 use poprako_obj_dept::ObjDeptView;
-use poprako_rdb_core::RdbCore;
 
 use crate::part::effect::Develop;
 use crate::part::obj_dept::PageImage;
 use crate::part::prom::payload::TaskPayload;
+use crate::part::repo::assignment_invitation::AssignmentInvitationRepo;
+use crate::part::repo::chapter::ChapterRepo;
+use crate::part::repo::chapter_workflow_record::ChapterWorkflowRecordRepo;
+use crate::part::repo::member_invitation::MemberInvitationRepo;
+use crate::part::repo::page::PageRepo;
 use crate::part_impl::nucl::rdb_impl::RdbNucl;
 use crate::part_impl::prom::dispatch;
 use crate::part_impl::prom::rdb_impl::repo::RdbPromRepo;
 use crate::part_impl::prom::task_flow::TaskFlow;
-use crate::part_impl::repo::HybRepo;
+use crate::result::BaseError;
 use crate::shared::RdbContext;
 
-/// Read-only object capabilities available to the general prom actor.
-pub trait ObjView: ObjDeptView<PageImage, RdbContext> {}
-
-impl<T> ObjView for T where T: ObjDeptView<PageImage, RdbContext> {}
-
-/// Background worker that polls the `t_local_message` table, dispatches by topic,
-/// and completes or fails each record.
-pub struct RdbPromActor<V, D> {
+/// Owns cancellation and completion of one background supervisor.
+pub struct RdbPromActorDesc {
     //
-    /// Shared relational database core.
-    core: RdbCore,
+    /// Cancellation signal for the supervisor.
+    token: CancellationToken,
+    /// Task whose completion includes its worker shutdown.
+    task: tokio::task::JoinHandle<()>,
+}
 
-    /// Repository implementing persisted message lifecycle operations.
-    repo: RdbPromRepo,
+impl RdbPromActorDesc {
+    /// Requests cancellation without waiting for completion.
+    pub fn cancel(&self) {
+        self.token.cancel();
+    }
 
-    /// Read-only object capabilities used by deferred checks.
-    obj_view: V,
+    /// Waits for completion and reports a supervisor panic or cancellation.
+    ///
+    /// # Errors
+    /// Returns the supervisor task's join error.
+    pub async fn join(mut self) -> Result<(), tokio::task::JoinError> {
+        (&mut self.task).await
+    }
+}
 
-    /// Effect dispatcher used after committed business changes.
+impl Drop for RdbPromActorDesc {
+    // Request shutdown when the owner is dropped without joining.
+    fn drop(&mut self) {
+        self.token.cancel();
+    }
+}
+
+/// Persisted-task consumer with explicitly injected queue and business ports.
+pub struct RdbPromActor<N, R, V, D> {
+    //
+    /// Queue transaction coordinator.
+    prom_nucl: RdbNucl,
+    /// Queue lifecycle repository.
+    prom_repo: RdbPromRepo,
+
+    /// Business transaction coordinator.
+    nucl: N,
+    /// Business repository.
+    repo: R,
+    /// Object query port.
+    obj_dept_view: V,
+    /// Event producer.
     develop: D,
 
-    /// Shutdown signal propagated from the owning [`RdbProm`].
+    /// Supervisor cancellation signal.
     token: CancellationToken,
 }
 
-impl<V, D> RdbPromActor<V, D> {
-    /// Builds a prom actor from its core and read-only object view.
-    pub const fn new(
-        core: RdbCore,
-        obj_view: V,
-        develop: D,
-        token: CancellationToken,
+impl<N, R, V, D> RdbPromActor<N, R, V, D> {
+    /// Constructs a consumer without starting any background work.
+    pub fn new(
+        (prom_nucl, prom_repo): (RdbNucl, RdbPromRepo),
+        (nucl, repo, obj_dept_view, develop): (N, R, V, D),
     ) -> Self {
         //
         Self {
-            core,
-            repo: RdbPromRepo::new(),
-            obj_view,
+            prom_nucl,
+            prom_repo,
+            nucl,
+            repo,
+            obj_dept_view,
             develop,
-            token,
+            token: CancellationToken::new(),
         }
     }
 
-    /// Returns a transaction coordinator over the shared core.
-    #[must_use]
-    pub fn nucl(&self) -> RdbNucl {
-        RdbNucl::new(self.core.clone())
+    /// Returns the injected queue transaction coordinator.
+    pub const fn prom_nucl(&self) -> &RdbNucl {
+        &self.prom_nucl
     }
 
-    /// Returns the repository used for persisted message lifecycle operations.
-    #[must_use]
-    pub const fn repo(&self) -> &RdbPromRepo {
-        &self.repo
+    /// Returns the injected queue repository.
+    pub const fn prom_repo(&self) -> &RdbPromRepo {
+        &self.prom_repo
     }
 
-    /// Returns a business repository over the shared core.
-    #[must_use]
-    pub fn task_repo(&self) -> HybRepo {
-        HybRepo::new(self.core.clone())
-    }
-
-    /// Returns the object department used by deferred object checks.
-    #[must_use]
-    pub const fn obj_view(&self) -> &V {
-        &self.obj_view
-    }
-
-    /// Returns the effect dispatcher used after committed business changes.
-    #[must_use]
-    pub const fn develop(&self) -> &D {
-        &self.develop
-    }
-
-    /// Returns the cancellation token that controls the actor lifecycle.
-    #[must_use]
+    /// Returns the supervisor cancellation signal.
     pub const fn token(&self) -> &CancellationToken {
         &self.token
     }
 }
 
-impl<V, D> RdbPromActor<V, D>
+impl<N, R, V, D> RdbPromActor<N, R, V, D>
 where
-    V: ObjView + Send + Sync,
+    N: Nucl<Error = BaseError> + Send + Sync,
+    N::Context: Send,
+    R: AssignmentInvitationRepo<N::Context>
+        + ChapterRepo<N::Context>
+        + ChapterWorkflowRecordRepo<N::Context>
+        + MemberInvitationRepo<N::Context>
+        + PageRepo<N::Context>
+        + Send
+        + Sync,
+    V: ObjDeptView<PageImage, N::Context> + Send + Sync,
     D: Develop + Send + Sync,
 {
     /// Decodes and dispatches one persisted prom payload.
@@ -149,14 +169,36 @@ where
             };
         }
 
-        let nucl = self.nucl();
-
-        let task_repo = self.task_repo();
-
-        dispatch::dispatch::<RdbContext, _, _, _, _>(
-            (&nucl, &task_repo, self.obj_view(), self.develop()),
+        dispatch::dispatch::<N::Context, _, _, _, _>(
+            (&self.nucl, &self.repo, &self.obj_dept_view, &self.develop),
             task,
         )
         .await
+    }
+}
+
+impl<R, V, D> RdbPromActor<RdbNucl, R, V, D>
+where
+    R: AssignmentInvitationRepo<RdbContext>
+        + ChapterRepo<RdbContext>
+        + ChapterWorkflowRecordRepo<RdbContext>
+        + MemberInvitationRepo<RdbContext>
+        + PageRepo<RdbContext>
+        + Send
+        + Sync,
+    V: ObjDeptView<PageImage, RdbContext> + Send + Sync,
+    D: Develop + Send + Sync,
+{
+    /// Starts the consumer and transfers shutdown ownership to its descriptor.
+    #[must_use]
+    pub fn run_detach(self) -> RdbPromActorDesc
+    where
+        R: 'static,
+        V: 'static,
+        D: 'static,
+    {
+        let (token, task) = (self.token.clone(), tokio::spawn(self.run()));
+
+        RdbPromActorDesc { token, task }
     }
 }

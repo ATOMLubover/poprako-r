@@ -114,6 +114,13 @@ impl<L> RdbNucl<L> {
     }
 }
 
+impl<L> Clone for RdbNucl<L> {
+    // Share the existing database pool without constraining the level marker.
+    fn clone(&self) -> Self {
+        Self::new(self.core.clone())
+    }
+}
+
 impl<L> Nucl for RdbNucl<L>
 where
     L: RdbLevel + Send + Sync,

@@ -6,18 +6,15 @@ mod tests;
 use std::future::Future;
 use std::time::Duration;
 
-use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 
 use poprako_obj_dept::ObjDept;
-use poprako_rdb_core::RdbCore;
 
-use crate::part::nucl::ReptRead;
 use crate::part::obj_dept::{
     ChapterArtwork, ComicCover, PageImage, TeamAvatar,
 };
+use crate::part::repo::subtree_delete::SubtreeRepo;
 use crate::part_impl::nucl::rdb_impl::RdbNucl;
-use crate::part_impl::repo::HybRepo;
 use crate::result::BaseRest;
 use crate::shared::RdbContext;
 use crate::usecase;
@@ -44,28 +41,24 @@ pub async fn wait(token: &CancellationToken) -> bool {
 }
 
 /// Spawns one hierarchy sweep worker.
-pub fn spawn<O>(
-    core: RdbCore,
+pub fn spawn<R, O>(
+    nucl: RdbNucl,
+    repo: R,
     obj_dept: O,
     token: CancellationToken,
-) -> watch::Receiver<bool>
+) -> tokio::task::JoinHandle<()>
 where
-    O: ObjDept<ChapterArtwork, RdbContext<ReptRead>>
-        + ObjDept<PageImage, RdbContext<ReptRead>>
-        + ObjDept<ComicCover, RdbContext<ReptRead>>
-        + ObjDept<TeamAvatar, RdbContext<ReptRead>>
+    R: SubtreeRepo<RdbContext> + Send + Sync + 'static,
+    O: ObjDept<ChapterArtwork, RdbContext>
+        + ObjDept<PageImage, RdbContext>
+        + ObjDept<ComicCover, RdbContext>
+        + ObjDept<TeamAvatar, RdbContext>
         + Send
         + Sync
         + 'static,
 {
-    let (done_send, done_recv) = watch::channel(false);
-
     tokio::spawn(async move {
         //
-        let nucl = RdbNucl::<ReptRead>::new(core.clone());
-
-        let repo = HybRepo::new(core);
-
         run(
             &token,
             |level| {
@@ -74,11 +67,7 @@ where
             || wait(&token),
         )
         .await;
-
-        done_send.send_replace(true);
-    });
-
-    done_recv
+    })
 }
 
 // Runs hierarchy sweep rounds until cancellation or a cancelled retry wait.

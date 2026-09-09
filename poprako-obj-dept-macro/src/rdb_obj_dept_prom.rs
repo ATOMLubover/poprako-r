@@ -40,14 +40,17 @@ impl Parse for PromInput {
         }
 
         if !content.is_empty() || !input.is_empty() {
-            return Err(input.error("unexpected ObjProm declaration tokens"));
+            //
+            return Err(
+                input.error("unexpected ObjDeptProm declaration tokens")
+            );
         }
 
         Ok(Self { name, table })
     }
 }
 
-/// Expands the typed Diesel `ObjProm` adapter.
+/// Expands the typed Diesel `ObjDeptProm` adapter.
 #[expect(
     clippy::too_many_lines,
     reason = "actor-side task transitions remain one auditable generated state machine"
@@ -71,7 +74,8 @@ pub fn expand(input: TokenStream) -> Result<TokenStream> {
 
         impl #name {
             //
-            const fn new(core: ::poprako_rdb_core::RdbCore) -> Self {
+            /// Constructs task storage from an injected database core.
+            pub const fn new(core: ::poprako_rdb_core::RdbCore) -> Self {
                 Self { core }
             }
         }
@@ -84,7 +88,7 @@ pub fn expand(input: TokenStream) -> Result<TokenStream> {
             use ::diesel_async::RunQueryDsl as _;
 
             use ::poprako_obj_dept::key::ObjKey;
-            use ::poprako_obj_dept::model::task::ObjPromTask;
+            use ::poprako_obj_dept::model::task::ObjDeptPromTask;
             use ::poprako_obj_dept::rdb_impl::{diesel_err, rdb_err};
             use ::poprako_obj_dept::rest::{ObjDeptError, ObjDeptRest};
             use ::poprako_rdb_core::{RdbConn, RdbCore};
@@ -166,7 +170,7 @@ pub fn expand(input: TokenStream) -> Result<TokenStream> {
                 lease: i64,
             }
 
-            impl From<TaskRow> for ObjPromTask {
+            impl From<TaskRow> for ObjDeptPromTask {
                 //
                 fn from(row: TaskRow) -> Self {
                     //
@@ -238,7 +242,7 @@ pub fn expand(input: TokenStream) -> Result<TokenStream> {
 
             pub async fn claim_task(
                 core: &RdbCore,
-            ) -> ObjDeptRest<Option<ObjPromTask>> {
+            ) -> ObjDeptRest<Option<ObjDeptPromTask>> {
                 let mut conn = core.get().await.map_err(rdb_err)?;
                 let claim_candidate =
                     ::diesel::alias!(#table as claim_candidate);
@@ -306,7 +310,7 @@ pub fn expand(input: TokenStream) -> Result<TokenStream> {
 
             pub async fn complete_task(
                 core: &RdbCore,
-                task: &ObjPromTask,
+                task: &ObjDeptPromTask,
             ) -> ObjDeptRest<usize> {
                 let mut conn = core.get().await.map_err(rdb_err)?;
 
@@ -328,7 +332,7 @@ pub fn expand(input: TokenStream) -> Result<TokenStream> {
 
             pub async fn retry_task(
                 core: &RdbCore,
-                task: &ObjPromTask,
+                task: &ObjDeptPromTask,
                 message: &str,
             ) -> ObjDeptRest<usize> {
                 let mut conn = core.get().await.map_err(rdb_err)?;
@@ -356,7 +360,7 @@ pub fn expand(input: TokenStream) -> Result<TokenStream> {
 
             pub async fn mark_task_operator(
                 core: &RdbCore,
-                task: &ObjPromTask,
+                task: &ObjDeptPromTask,
                 message: &str,
             ) -> ObjDeptRest<usize> {
                 let mut conn = core.get().await.map_err(rdb_err)?;
@@ -417,7 +421,7 @@ pub fn expand(input: TokenStream) -> Result<TokenStream> {
             }
         }
 
-        impl ::poprako_obj_dept::prom::ObjProm for #name {
+        impl ::poprako_obj_dept::prom::ObjDeptProm for #name {
             async fn reset_tasks(
                 &self,
             ) -> ::poprako_obj_dept::rest::ObjDeptRest<usize> {
@@ -427,21 +431,21 @@ pub fn expand(input: TokenStream) -> Result<TokenStream> {
             async fn claim_task(
                 &self,
             ) -> ::poprako_obj_dept::rest::ObjDeptRest<
-                Option<::poprako_obj_dept::model::task::ObjPromTask>,
+                Option<::poprako_obj_dept::model::task::ObjDeptPromTask>,
             > {
                 #module::claim_task(&self.core).await
             }
 
             async fn complete_task(
                 &self,
-                task: &::poprako_obj_dept::model::task::ObjPromTask,
+                task: &::poprako_obj_dept::model::task::ObjDeptPromTask,
             ) -> ::poprako_obj_dept::rest::ObjDeptRest<usize> {
                 #module::complete_task(&self.core, task).await
             }
 
             async fn retry_task<'a>(
                 &'a self,
-                task: &'a ::poprako_obj_dept::model::task::ObjPromTask,
+                task: &'a ::poprako_obj_dept::model::task::ObjDeptPromTask,
                 message: &'a str,
             ) -> ::poprako_obj_dept::rest::ObjDeptRest<usize> {
                 #module::retry_task(&self.core, task, message).await
@@ -449,7 +453,7 @@ pub fn expand(input: TokenStream) -> Result<TokenStream> {
 
             async fn mark_task_operator<'a>(
                 &'a self,
-                task: &'a ::poprako_obj_dept::model::task::ObjPromTask,
+                task: &'a ::poprako_obj_dept::model::task::ObjDeptPromTask,
                 message: &'a str,
             ) -> ::poprako_obj_dept::rest::ObjDeptRest<usize> {
                 #module::mark_task_operator(&self.core, task, message).await

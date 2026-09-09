@@ -1,5 +1,5 @@
-use diesel::prelude::*;
-use diesel_async::RunQueryDsl;
+use diesel::{QueryDsl as _, TextExpressionMethods as _};
+use diesel_async::RunQueryDsl as _;
 
 use poprako_rdb_core::RdbCore;
 
@@ -39,10 +39,10 @@ pub async fn assert_no_leftovers(
 
     let id_pattern = format!("{}%", prefix);
 
-    let local_message_count: i64 = t_local_message::table
+    let local_message_count = t_local_message::table
         .filter(t_local_message::f_id.like(&id_pattern))
         .count()
-        .get_result(&mut conn)
+        .get_result::<i64>(&mut conn)
         .await
         .map_err(diesel_error)?;
 

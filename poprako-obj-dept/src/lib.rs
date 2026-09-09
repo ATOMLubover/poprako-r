@@ -55,7 +55,7 @@ use crate::rest::ObjDeptError;
 
 #[cfg(feature = "rdb_impl")]
 pub use poprako_obj_dept_macro::{
-    expand_obj_dept_items, impl_obj_dept, objs_def, rdb_obj_prom,
+    expand_obj_dept_items, impl_obj_dept, objs_def, rdb_obj_dept_prom,
 };
 #[cfg(feature = "rdb_impl")]
 pub use poprako_rdb_core::{RdbContext, RdbCore};

@@ -55,9 +55,9 @@ pub enum RawProvideAdvance {
 }
 
 /// Advances raw provisioning after every current page object is available.
-#[instrument(level = "info", skip(nucl, repo, obj_view, develop))]
+#[instrument(level = "info", skip(nucl, repo, obj_dept_view, develop))]
 pub async fn try_advance_raw_provide<C, N, R, V, D>(
-    (nucl, repo, obj_view, develop): (&N, &R, &V, &D),
+    (nucl, repo, obj_dept_view, develop): (&N, &R, &V, &D),
     chapter_id: &str,
     actor_user_id: Option<String>,
 ) -> BaseRest<RawProvideAdvance>
@@ -91,7 +91,7 @@ where
                 .collect::<Vec<_>>();
 
             let obj_metas = ListObjMetas::<PageImage>::new(&page_ids)
-                .step_on(obj_view, context)
+                .step_on(obj_dept_view, context)
                 .await
                 .map_err(BaseError::from)?;
 

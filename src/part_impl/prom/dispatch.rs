@@ -23,7 +23,7 @@ use crate::usecase::{assignment_invitation, member_invitation};
 
 /// Delivers one decoded Prom task to its domain use case.
 pub async fn dispatch<C, N, R, V, D>(
-    (nucl, repo, obj_view, develop): (&N, &R, &V, &D),
+    (nucl, repo, obj_dept_view, develop): (&N, &R, &V, &D),
     task: TaskPayload,
 ) -> TaskFlow
 where
@@ -49,7 +49,7 @@ where
             } => {
                 //
                 let rest = try_advance_raw_provide(
-                    (nucl, repo, obj_view, develop),
+                    (nucl, repo, obj_dept_view, develop),
                     &chapter_id,
                     actor_user_id,
                 )

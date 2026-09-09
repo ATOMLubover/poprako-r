@@ -4,10 +4,10 @@ use std::sync::{Arc, Mutex};
 
 use tokio::sync::Notify;
 
-use super::{ObjActor, POLL_INTERVAL, action_from_err};
+use super::{ObjDeptActor, POLL_INTERVAL, action_from_err};
 use crate::key::ObjKey;
-use crate::model::task::{CHECK, ObjPromTask, ObjTaskAction, obj_task_id};
-use crate::prom::ObjProm;
+use crate::model::task::{CHECK, ObjDeptPromTask, ObjTaskAction, obj_task_id};
+use crate::prom::ObjDeptProm;
 use crate::rest::{ObjDeptError, ObjDeptRest};
 
 #[derive(Clone, Default)]
@@ -17,14 +17,14 @@ struct MockProm {
 
 #[derive(Default)]
 struct MockPromInner {
-    tasks: Mutex<VecDeque<ObjPromTask>>,
+    tasks: Mutex<VecDeque<ObjDeptPromTask>>,
     reset_count: AtomicUsize,
     claim_count: AtomicUsize,
     complete_count: AtomicUsize,
 }
 
 impl MockProm {
-    fn with_task(task: ObjPromTask) -> Self {
+    fn with_task(task: ObjDeptPromTask) -> Self {
         let prom = Self::default();
 
         prom.inner
@@ -37,14 +37,14 @@ impl MockProm {
     }
 }
 
-impl ObjProm for MockProm {
+impl ObjDeptProm for MockProm {
     async fn reset_tasks(&self) -> ObjDeptRest<usize> {
         self.inner.reset_count.fetch_add(1, Ordering::SeqCst);
 
         Ok(0)
     }
 
-    async fn claim_task(&self) -> ObjDeptRest<Option<ObjPromTask>> {
+    async fn claim_task(&self) -> ObjDeptRest<Option<ObjDeptPromTask>> {
         self.inner.claim_count.fetch_add(1, Ordering::SeqCst);
 
         Ok(self
@@ -55,7 +55,10 @@ impl ObjProm for MockProm {
             .pop_front())
     }
 
-    async fn complete_task(&self, _task: &ObjPromTask) -> ObjDeptRest<usize> {
+    async fn complete_task(
+        &self,
+        _task: &ObjDeptPromTask,
+    ) -> ObjDeptRest<usize> {
         self.inner.complete_count.fetch_add(1, Ordering::SeqCst);
 
         Ok(1)
@@ -63,7 +66,7 @@ impl ObjProm for MockProm {
 
     async fn retry_task<'a>(
         &'a self,
-        _task: &'a ObjPromTask,
+        _task: &'a ObjDeptPromTask,
         _message: &'a str,
     ) -> ObjDeptRest<usize> {
         Ok(1)
@@ -71,7 +74,7 @@ impl ObjProm for MockProm {
 
     async fn mark_task_operator<'a>(
         &'a self,
-        _task: &'a ObjPromTask,
+        _task: &'a ObjDeptPromTask,
         _message: &'a str,
     ) -> ObjDeptRest<usize> {
         Ok(1)
@@ -95,9 +98,15 @@ fn unavailable_dependency_failure_remains_retryable_for_worker() {
 async fn actor_runs_both_loops_immediately_then_waits_thirty_seconds() {
     let prom = MockProm::with_task(task());
 
-    let actor = ObjActor::new(prom.clone(), |_task| async {
+    let actor = ObjDeptActor::new(prom.clone(), |_task| async {
         Ok(ObjTaskAction::Complete)
     });
+
+    yield_until_idle().await;
+
+    assert_eq!(prom.inner.claim_count.load(Ordering::SeqCst), 0);
+
+    let actor = actor.run_detach();
 
     yield_until_idle().await;
 
@@ -121,7 +130,7 @@ async fn actor_runs_both_loops_immediately_then_waits_thirty_seconds() {
 
     actor.cancel();
 
-    actor.join().await;
+    assert!(actor.join().await.is_ok());
 }
 
 #[tokio::test(start_paused = true)]
@@ -132,7 +141,7 @@ async fn maintenance_keeps_its_cadence_while_claimed_work_is_busy() {
 
     let handler_release = release.clone();
 
-    let actor = ObjActor::new(prom.clone(), move |_task| {
+    let actor = ObjDeptActor::new(prom.clone(), move |_task| {
         let release = handler_release.clone();
 
         async move {
@@ -141,6 +150,8 @@ async fn maintenance_keeps_its_cadence_while_claimed_work_is_busy() {
             Ok(ObjTaskAction::Complete)
         }
     });
+
+    let actor = actor.run_detach();
 
     yield_until_idle().await;
 
@@ -162,17 +173,17 @@ async fn maintenance_keeps_its_cadence_while_claimed_work_is_busy() {
 
     actor.cancel();
 
-    actor.join().await;
+    assert!(actor.join().await.is_ok());
 }
 
-fn task() -> ObjPromTask {
+fn task() -> ObjDeptPromTask {
     let key = ObjKey {
         id: "page-1".into(),
         ver: 1,
         image: "page/page-1-1.png".into(),
     };
 
-    ObjPromTask {
+    ObjDeptPromTask {
         id: obj_task_id("page_image", CHECK, &key, 0),
         topic: "page_image".into(),
         oper: CHECK.into(),
@@ -189,4 +200,17 @@ async fn yield_until_idle() {
     for _ in 0..8 {
         tokio::task::yield_now().await;
     }
+}
+
+// join_reports_supervisor_failure(ObjDeptActorDesc::join)(negative): a cancelled supervisor remains observable to its owner.
+#[tokio::test]
+async fn join_reports_supervisor_failure() {
+    let actor = ObjDeptActor::new(MockProm::with_task(task()), |_task| async {
+        Ok(ObjTaskAction::Complete)
+    })
+    .run_detach();
+
+    actor.task.abort();
+
+    assert!(actor.join().await.is_err());
 }

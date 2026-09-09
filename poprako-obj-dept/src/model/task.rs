@@ -35,7 +35,7 @@ pub fn obj_task_id(
 /// # Errors
 ///
 /// Returns a message when persisted envelope fields are inconsistent.
-pub fn validate_task(task: &ObjPromTask) -> ObjDeptRest<()> {
+pub fn validate_task(task: &ObjDeptPromTask) -> ObjDeptRest<()> {
     //
     let key = task.key()?;
 
@@ -57,7 +57,7 @@ pub fn validate_task(task: &ObjPromTask) -> ObjDeptRest<()> {
 
 /// One raw durable task owned by an exact lease.
 #[derive(Debug, Clone)]
-pub struct ObjPromTask {
+pub struct ObjDeptPromTask {
     //
     /// Stable task identifier.
     pub id: String,
@@ -82,7 +82,7 @@ pub struct ObjPromTask {
     pub lease: i64,
 }
 
-impl ObjPromTask {
+impl ObjDeptPromTask {
     /// Decodes the persisted logical key.
     ///
     /// # Errors

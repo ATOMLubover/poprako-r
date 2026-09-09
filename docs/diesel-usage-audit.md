@@ -298,7 +298,7 @@ and overflow quarantine, attempt timeout, and finalization fencing are retained.
 Evidence:
 
 - [`poprako-obj-dept/src/actor.rs`](../poprako-obj-dept/src/actor.rs#L174)
-- [`poprako-obj-dept-macro/src/rdb_obj_prom.rs`](../poprako-obj-dept-macro/src/rdb_obj_prom.rs#L187)
+- [`poprako-obj-dept-macro/src/rdb_obj_dept_prom.rs`](../poprako-obj-dept-macro/src/rdb_obj_dept_prom.rs#L187)
 
 ### Resolved P1: Term import updates are batched and scoped
 

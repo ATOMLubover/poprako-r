@@ -11,7 +11,7 @@ use crate::actor::rdb_impl::{
 use crate::key::KeyMap;
 use crate::model::meta::ObjMeta;
 use crate::model::slot::ObjSlot;
-use crate::model::task::{CHECK, ObjPromTask, obj_task_id, validate_task};
+use crate::model::task::{CHECK, ObjDeptPromTask, obj_task_id, validate_task};
 use crate::model::url::ObjUrls;
 use crate::oper::{
     ClearObjs, DeleteObjs, GenObjSlot, GenObjSlots, GenObjUrls, ListObjMetas,
@@ -275,14 +275,14 @@ fn cleanup_operations_retain_their_input_ids() {
     assert_eq!(delete.ids, ids);
 }
 
-fn task() -> ObjPromTask {
+fn task() -> ObjDeptPromTask {
     let key = crate::key::ObjKey {
         id: "page-1".into(),
         ver: 7,
         image: "page/page-1-7.png".into(),
     };
 
-    ObjPromTask {
+    ObjDeptPromTask {
         id: obj_task_id("page_image", CHECK, &key, 2),
         topic: "page_image".into(),
         oper: CHECK.into(),

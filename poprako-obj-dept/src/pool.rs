@@ -6,12 +6,12 @@ use std::future::Future;
 use futures_util::future::try_join_all;
 
 use crate::model::meta::ObjMeta;
-use crate::model::slot::ObjPoolSlot;
+use crate::model::slot::ObjDeptPoolSlot;
 use crate::model::url::{ObjUrlSpec, ObjUrls};
 use crate::rest::{ObjDeptError, ObjDeptRest};
 
 /// Read-only physical object operations.
-pub trait ObjPoolView {
+pub trait ObjDeptPoolView {
     /// Generates public or signed read URLs for one physical key and profile.
     fn gen_urls(
         &self,
@@ -24,14 +24,14 @@ pub trait ObjPoolView {
 }
 
 /// Complete storage-neutral physical object operations.
-pub trait ObjPool: ObjPoolView {
+pub trait ObjDeptPool: ObjDeptPoolView {
     /// Generates a write capability for one physical key.
     fn gen_slot(
         &self,
         key: &str,
         content_type: &str,
         byte_len: u64,
-    ) -> impl Future<Output = ObjDeptRest<ObjPoolSlot>> + Send;
+    ) -> impl Future<Output = ObjDeptRest<ObjDeptPoolSlot>> + Send;
 
     /// Deletes one physical key idempotently.
     fn del(&self, key: &str) -> impl Future<Output = ObjDeptRest<()>> + Send;
@@ -59,7 +59,7 @@ pub async fn gen_urls_bounded<P, S>(
     metas: &HashMap<String, ObjMeta, S>,
 ) -> ObjDeptRest<HashMap<String, ObjUrls>>
 where
-    P: ObjPoolView + Sync,
+    P: ObjDeptPoolView + Sync,
     S: std::hash::BuildHasher + Sync,
 {
     // Maximum pool requests resolved concurrently in one batch.

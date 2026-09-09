@@ -19,9 +19,9 @@ use time::OffsetDateTime;
 use tracing::instrument;
 use url::Url;
 
-use poprako_obj_dept::model::slot::ObjPoolSlot;
+use poprako_obj_dept::model::slot::ObjDeptPoolSlot;
 use poprako_obj_dept::model::url::{ObjUrlSpec, ObjUrls};
-use poprako_obj_dept::pool::{ObjPool, ObjPoolView, ensure_url_spec};
+use poprako_obj_dept::pool::{ObjDeptPool, ObjDeptPoolView, ensure_url_spec};
 use poprako_obj_dept::rest::{ObjDeptError, ObjDeptRest};
 
 // Expiration duration for presigned upload URLs (10 minutes).
@@ -29,7 +29,7 @@ const PUT_SIGNED_EXPIRATION: Duration = Duration::from_mins(10);
 
 /// Cloudflare R2-backed physical object pool.
 #[derive(Clone)]
-pub struct R2ObjPool {
+pub struct R2ObjDeptPool {
     //
     // Internal state field `client`.
     /// HTTP client configured for Cloudflare R2 API requests.
@@ -40,7 +40,7 @@ pub struct R2ObjPool {
     domain: String,
 }
 
-impl R2ObjPool {
+impl R2ObjDeptPool {
     /// Creates an object pool from an already configured S3-compatible client.
     #[must_use]
     pub const fn new(client: Client, bucket: String, domain: String) -> Self {
@@ -63,26 +63,26 @@ impl R2ObjPool {
         // Internal implementation detail.
         let (account_id, access_key_id) = (
             var("R2_ACCOUNT_ID").with_context(
-                || "[R2ObjPool::from_env] R2_ACCOUNT_ID is not set",
+                || "[R2ObjDeptPool::from_env] R2_ACCOUNT_ID is not set",
             )?,
             var("R2_ACCESS_KEY_ID").with_context(
-                || "[R2ObjPool::from_env] R2_ACCESS_KEY_ID is not set",
+                || "[R2ObjDeptPool::from_env] R2_ACCESS_KEY_ID is not set",
             )?,
         );
 
         let (secret_access_key, region) = (
             var("R2_SECRET_ACCESS_KEY").with_context(
-                || "[R2ObjPool::from_env] R2_SECRET_ACCESS_KEY is not set",
+                || "[R2ObjDeptPool::from_env] R2_SECRET_ACCESS_KEY is not set",
             )?,
             var("R2_REGION").unwrap_or_else(|_| "auto".to_string()),
         );
 
         let (bucket, domain) = (
             var("R2_BUCKET_NAME").with_context(
-                || "[R2ObjPool::from_env] R2_BUCKET_NAME is not set",
+                || "[R2ObjDeptPool::from_env] R2_BUCKET_NAME is not set",
             )?,
             var("R2_CUSTOM_DOMAIN").with_context(
-                || "[R2ObjPool::from_env] R2_CUSTOM_DOMAIN is not set",
+                || "[R2ObjDeptPool::from_env] R2_CUSTOM_DOMAIN is not set",
             )?,
         );
 
@@ -108,7 +108,7 @@ impl R2ObjPool {
     }
 }
 
-impl ObjPoolView for R2ObjPool {
+impl ObjDeptPoolView for R2ObjDeptPool {
     #[instrument(level = "info", skip_all)]
     // Generates the original and Cloudflare-resized object URLs.
     async fn gen_urls(
@@ -155,7 +155,7 @@ impl ObjPoolView for R2ObjPool {
     }
 }
 
-impl ObjPool for R2ObjPool {
+impl ObjDeptPool for R2ObjDeptPool {
     #[instrument(level = "info", skip_all)]
     // Generates one signed upload capability.
     async fn gen_slot(
@@ -163,7 +163,7 @@ impl ObjPool for R2ObjPool {
         key: &str,
         content_type: &str,
         byte_len: u64,
-    ) -> ObjDeptRest<ObjPoolSlot> {
+    ) -> ObjDeptRest<ObjDeptPoolSlot> {
         //
         // Internal implementation detail.
         let signed_at = SystemTime::now();
@@ -237,7 +237,7 @@ impl ObjPool for R2ObjPool {
 
         headers.insert("content-type".into(), content_type.into());
 
-        Ok(ObjPoolSlot {
+        Ok(ObjDeptPoolSlot {
             url,
             headers,
             expires_at,
