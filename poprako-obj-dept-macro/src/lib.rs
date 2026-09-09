@@ -30,8 +30,8 @@ mod object;
 mod obj_dept_entry;
 // Expands one total ObjDept implementation.
 mod impl_obj_dept;
-// Expands one typed RDB ObjProm adapter.
-mod rdb_obj_prom;
+// Expands one typed RDB ObjDeptProm adapter.
+mod rdb_obj_dept_prom;
 
 #[cfg(test)]
 mod tests;
@@ -47,11 +47,11 @@ pub fn objs_def(input: TokenStream) -> TokenStream {
         .into()
 }
 
-/// Declares one typed Diesel `ObjProm` adapter.
+/// Declares one typed Diesel `ObjDeptProm` adapter.
 #[proc_macro]
-pub fn rdb_obj_prom(input: TokenStream) -> TokenStream {
+pub fn rdb_obj_dept_prom(input: TokenStream) -> TokenStream {
     //
-    rdb_obj_prom::expand(input.into())
+    rdb_obj_dept_prom::expand(input.into())
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }

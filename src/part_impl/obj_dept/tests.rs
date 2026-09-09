@@ -6,7 +6,7 @@ use time::{Duration, OffsetDateTime};
 
 use poprako_rdb_core::RdbCore;
 
-use super::rdb_obj_prom_rdb_impl::claim_task;
+use super::rdb_obj_dept_prom_rdb_impl::claim_task;
 use crate::part_impl::repo::rdb_impl::schema::t_obj_prom_task;
 
 const PREFIX: &str = "rdb-test-obj-claim-";
@@ -129,9 +129,9 @@ async fn cleanup(shared: &RdbCore) {
 
 // A deterministic pool keeps RDB lifecycle tests independent of remote storage.
 #[derive(Clone)]
-struct ArtworkTestPool;
+pub struct ArtworkTestPool;
 
-impl poprako_obj_dept::pool::ObjPoolView for ArtworkTestPool {
+impl poprako_obj_dept::pool::ObjDeptPoolView for ArtworkTestPool {
     async fn gen_urls(
         &self,
         _key: &str,
@@ -154,16 +154,16 @@ impl poprako_obj_dept::pool::ObjPoolView for ArtworkTestPool {
     }
 }
 
-impl poprako_obj_dept::pool::ObjPool for ArtworkTestPool {
+impl poprako_obj_dept::pool::ObjDeptPool for ArtworkTestPool {
     async fn gen_slot(
         &self,
         key: &str,
         _content_type: &str,
         _byte_len: u64,
     ) -> poprako_obj_dept::rest::ObjDeptRest<
-        poprako_obj_dept::model::slot::ObjPoolSlot,
+        poprako_obj_dept::model::slot::ObjDeptPoolSlot,
     > {
-        Ok(poprako_obj_dept::model::slot::ObjPoolSlot {
+        Ok(poprako_obj_dept::model::slot::ObjDeptPoolSlot {
             url: url::Url::parse(&format!("https://obj.test/{key}")).unwrap(),
             headers: Default::default(),
             expires_at: OffsetDateTime::now_utc() + Duration::minutes(10),
@@ -194,10 +194,8 @@ pub async fn artwork_transactional_mark(shared: RdbCore) {
     let dept = super::NormObjDept::new(
         shared.clone(),
         ArtworkTestPool,
-        super::RdbObjProm::new(shared.clone()),
+        super::RdbObjDeptProm::new(shared.clone()),
     );
-
-    dept.close().await;
 
     let chapter_id = "rdb-test-artwork-transaction";
 

@@ -9,11 +9,10 @@ mod tests;
 
 use std::future::Future;
 
-use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 
-use crate::model::task::{ObjPromTask, ObjTaskAction, validate_task};
-use crate::prom::ObjProm;
+use crate::model::task::{ObjDeptPromTask, ObjTaskAction, validate_task};
+use crate::prom::ObjDeptProm;
 use crate::rest::{ObjDeptError, ObjDeptRest};
 
 /// Delay between idle polls.
@@ -23,70 +22,6 @@ pub const POLL_INTERVAL: std::time::Duration =
 /// Maximum duration of one claimed attempt.
 pub const ATTEMPT_TIMEOUT: std::time::Duration =
     std::time::Duration::from_mins(1);
-
-/// Control descriptor for the single object actor.
-#[derive(Clone)]
-pub struct ObjActorDesc {
-    //
-    /// Actor cancellation signal.
-    token: CancellationToken,
-    /// Actor completion receiver.
-    done_recv: watch::Receiver<bool>,
-}
-
-impl ObjActorDesc {
-    /// Signals cancellation.
-    pub fn cancel(&self) {
-        self.token.cancel();
-    }
-
-    /// Waits for actor completion.
-    pub async fn join(&self) {
-        //
-        let mut done_recv = self.done_recv.clone();
-
-        if let Err(err) = done_recv.wait_for(|is_done| *is_done).await {
-            //
-            tracing::error!(
-                operation = "join_obj_actor",
-                sdk_err = ?err,
-                "ObjDept actor completion channel failed",
-            );
-        }
-    }
-}
-
-/// Namespace for constructing the single object actor.
-pub struct ObjActor;
-
-impl ObjActor {
-    /// Spawns the object actor and returns its descriptor.
-    #[expect(
-        clippy::new_ret_no_self,
-        reason = "ObjActor is the event-loop constructor namespace required by the actor contract"
-    )]
-    pub fn new<P, H, F>(prom: P, handler: H) -> ObjActorDesc
-    where
-        P: ObjProm + Clone + Send + Sync + 'static,
-        H: Fn(ObjPromTask) -> F + Send + Sync + 'static,
-        F: Future<Output = ObjDeptRest<ObjTaskAction>> + Send + 'static,
-    {
-        let token = CancellationToken::new();
-
-        let actor_token = token.clone();
-
-        let (done_send, done_recv) = watch::channel(false);
-
-        tokio::spawn(async move {
-            //
-            run_actor(prom, handler, actor_token).await;
-
-            done_send.send_replace(true);
-        });
-
-        ObjActorDesc { token, done_recv }
-    }
-}
 
 // Maps one adapter failure to its mechanical durable-task action.
 fn action_from_err(err: ObjDeptError) -> ObjTaskAction {
@@ -109,11 +44,11 @@ fn action_from_err(err: ObjDeptError) -> ObjTaskAction {
 // Persists one actor decision through the durable-task adapter.
 async fn persist_action<P>(
     prom: &P,
-    task: &ObjPromTask,
+    task: &ObjDeptPromTask,
     action: &ObjTaskAction,
 ) -> ObjDeptRest<usize>
 where
-    P: ObjProm,
+    P: ObjDeptProm,
 {
     //
     match action {
@@ -143,11 +78,11 @@ async fn wait_poll(token: &CancellationToken) -> bool {
 async fn run_attempt<P, H, F>(
     prom: &P,
     handler: &H,
-    task: &ObjPromTask,
+    task: &ObjDeptPromTask,
 ) -> ObjDeptRest<usize>
 where
-    P: ObjProm,
-    H: Fn(ObjPromTask) -> F,
+    P: ObjDeptProm,
+    H: Fn(ObjDeptPromTask) -> F,
     F: Future<Output = ObjDeptRest<ObjTaskAction>>,
 {
     //
@@ -179,8 +114,8 @@ where
 // Claims immediately, drains visible work, and waits only when no task is available.
 async fn run_claim_loop<P, H, F>(prom: P, handler: H, token: CancellationToken)
 where
-    P: ObjProm,
-    H: Fn(ObjPromTask) -> F,
+    P: ObjDeptProm,
+    H: Fn(ObjDeptPromTask) -> F,
     F: Future<Output = ObjDeptRest<ObjTaskAction>>,
 {
     loop {
@@ -272,7 +207,7 @@ where
 // Runs maintenance immediately and then at an independent fixed cadence.
 async fn run_maintenance_loop<P>(prom: P, token: CancellationToken)
 where
-    P: ObjProm,
+    P: ObjDeptProm,
 {
     loop {
         //
@@ -309,8 +244,8 @@ where
 // Runs claim and maintenance under one cancellation supervisor.
 async fn run_actor<P, H, F>(prom: P, handler: H, token: CancellationToken)
 where
-    P: ObjProm + Clone,
-    H: Fn(ObjPromTask) -> F,
+    P: ObjDeptProm + Clone,
+    H: Fn(ObjDeptPromTask) -> F,
     F: Future<Output = ObjDeptRest<ObjTaskAction>>,
 {
     let claim_loop = run_claim_loop(prom.clone(), handler, token.clone());
@@ -318,4 +253,67 @@ where
     let maintenance_loop = run_maintenance_loop(prom, token);
 
     tokio::join!(claim_loop, maintenance_loop);
+}
+
+/// Owns cancellation and completion of one background supervisor.
+pub struct ObjDeptActorDesc {
+    //
+    /// Cancellation signal for the supervisor.
+    token: CancellationToken,
+    /// Task whose completion includes its worker shutdown.
+    task: tokio::task::JoinHandle<()>,
+}
+
+impl ObjDeptActorDesc {
+    /// Requests cancellation without waiting for completion.
+    pub fn cancel(&self) {
+        self.token.cancel();
+    }
+
+    /// Waits for completion and reports a supervisor panic or cancellation.
+    ///
+    /// # Errors
+    /// Returns the supervisor task's join error.
+    pub async fn join(mut self) -> Result<(), tokio::task::JoinError> {
+        (&mut self.task).await
+    }
+}
+
+impl Drop for ObjDeptActorDesc {
+    // Request shutdown when the owner is dropped without joining.
+    fn drop(&mut self) {
+        self.token.cancel();
+    }
+}
+
+/// Object consumer with explicitly injected task storage and dispatch.
+pub struct ObjDeptActor<P, H> {
+    //
+    /// Durable task adapter.
+    prom: P,
+    /// Object task dispatcher.
+    handler: H,
+}
+
+impl<P, H> ObjDeptActor<P, H> {
+    /// Constructs an object consumer without starting background work.
+    pub const fn new(prom: P, handler: H) -> Self {
+        Self { prom, handler }
+    }
+
+    /// Starts the claim and maintenance loops under one supervisor.
+    #[must_use]
+    pub fn run_detach<F>(self) -> ObjDeptActorDesc
+    where
+        P: ObjDeptProm + Clone + Send + Sync + 'static,
+        H: Fn(ObjDeptPromTask) -> F + Send + Sync + 'static,
+        F: Future<Output = ObjDeptRest<ObjTaskAction>> + Send + 'static,
+    {
+        let token = CancellationToken::new();
+
+        let task =
+            tokio::spawn(run_actor(self.prom, self.handler, token.clone()));
+
+        ObjDeptActorDesc { token, task }
+    }
 }

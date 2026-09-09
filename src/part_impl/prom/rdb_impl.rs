@@ -1,18 +1,20 @@
 //! Diesel-backed prom (promise) adapter.
 //!
 //! [`RdbProm`] writes deferred actions through the caller's transaction and
-//! owns the background queue-consumer lifecycle.
+//! is independent of the explicitly started queue consumer.
 
 // Internal organization of the `entity` module.
+// Diesel queue entities.
 mod entity;
-// Internal organization of the `actor` module.
-mod actor;
-// Internal organization of the `repo` module.
-mod repo;
 
 #[cfg(all(test, feature = "rdb", feature = "prom_impl"))]
 // Internal organization of the `test_shared` module.
 mod test_shared;
+
+/// Prom-consumer actor implementation.
+pub mod actor;
+/// Prom queue repository implementation.
+pub mod repo;
 
 #[cfg(all(test, feature = "rdb", feature = "prom_impl"))]
 // Internal organization of the `tests` module.
@@ -21,61 +23,29 @@ mod tests;
 use diesel_async::RunQueryDsl as _;
 use poprako_orchestra::{AtLeast, Level, Step};
 use time::OffsetDateTime;
-use tokio::sync::watch;
-use tokio_util::sync::CancellationToken;
 use tracing::instrument;
 
-use poprako_rdb_core::{RdbConn, RdbCore};
+use poprako_rdb_core::RdbConn;
 
-use crate::part::effect::Develop;
 use crate::part::nucl::ReptRead;
 use crate::part::prom::oper::{Defer, DeferBatch};
 use crate::part::prom::payload::TaskPayload;
 use crate::part::prom::task::Task;
-use crate::part_impl::prom::rdb_impl::actor::base::{ObjView, RdbPromActor};
 use crate::part_impl::prom::rdb_impl::entity::LocalMessageEntryRow;
 use crate::part_impl::repo::rdb_impl::schema::t_local_message;
 use crate::result::{BaseError, BaseRest, accept};
 use crate::shared::RdbContext;
 use crate::shared::result::diesel;
 
-/// RDB-backed prom adapter for transactional deferral and queue processing.
-///
-/// Call [`close`](RdbProm::close) to stop polling and drain claimed work before
-/// shutdown. Pending records remain durable for the next process start.
-pub struct RdbProm {
-    //
-    /// Shared relational database core used to construct the queue consumer.
-    core: RdbCore,
-    /// Cancellation signal for the queue supervisor.
-    token: CancellationToken,
-    /// Completion signal set after every worker drains.
-    done: watch::Receiver<bool>,
-}
+/// Transactional deferred-task writer, independent of background consumption.
+#[derive(Clone, Copy, Default)]
+pub struct RdbProm;
 
 impl RdbProm {
-    /// Stops polling and waits for all claimed work to finish.
-    #[instrument(level = "info", skip_all)]
-    pub async fn close(&self) {
-        //
-        self.token.cancel();
-
-        let mut done = self.done.clone();
-
-        if let Err(error) = done.wait_for(|is_done| *is_done).await {
-            //
-            tracing::error!(
-                err = %error,
-                "[RdbProm::close] background task ended without completion",
-            );
-        }
-    }
-}
-
-impl Drop for RdbProm {
-    // Cancels polling when the owner is dropped without an explicit close.
-    fn drop(&mut self) {
-        self.token.cancel();
+    /// Constructs a writer without starting a consumer.
+    #[must_use]
+    pub const fn new() -> Self {
+        Self
     }
 }
 
@@ -120,36 +90,6 @@ where
     ) -> BaseRest<()> {
         defer_batch(context.conn(), oper.tasks).await
     }
-}
-
-/// Starts the queue consumer with its statically typed business dependencies.
-#[must_use]
-pub fn new<V, D>(core: RdbCore, obj_view: V, develop: D) -> RdbProm
-where
-    V: ObjView + Send + Sync + 'static,
-    D: Develop + Send + Sync + 'static,
-{
-    let token = CancellationToken::new();
-
-    let (done_send, done) = watch::channel(false);
-
-    let rdb_prom = RdbProm { core, token, done };
-
-    let actor = RdbPromActor::new(
-        rdb_prom.core.clone(),
-        obj_view,
-        develop,
-        rdb_prom.token.clone(),
-    );
-
-    tokio::spawn(async move {
-        //
-        actor.run().await;
-
-        done_send.send_replace(true);
-    });
-
-    rdb_prom
 }
 
 // Implements defer.

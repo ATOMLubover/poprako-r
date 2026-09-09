@@ -133,7 +133,7 @@ pub fn expand_items(input: TokenStream) -> Result<TokenStream> {
         let topic = entry.topic();
 
         quote! {
-            #topic => ::poprako_obj_dept::handle_obj_task!(
+            #topic => ::poprako_obj_dept::handle_obj_dept_task!(
                 core,
                 pool,
                 task,
@@ -146,13 +146,14 @@ pub fn expand_items(input: TokenStream) -> Result<TokenStream> {
     Ok(quote! {
         impl<P, M> #dept<P, M>
         where
-            P: ::poprako_obj_dept::pool::ObjPool + ::core::marker::Sync,
-            M: ::poprako_obj_dept::prom::ObjProm + ::core::marker::Sync,
+            P: ::poprako_obj_dept::pool::ObjDeptPool + ::core::marker::Sync,
+            M: ::poprako_obj_dept::prom::ObjDeptProm + ::core::marker::Sync,
         {
-            async fn dispatch(
+            /// Dispatches an object task using the injected storage dependencies.
+            pub async fn dispatch(
                 core: ::poprako_rdb_core::RdbCore,
                 pool: P,
-                task: ::poprako_obj_dept::model::task::ObjPromTask,
+                task: ::poprako_obj_dept::model::task::ObjDeptPromTask,
             ) -> ::poprako_obj_dept::rest::ObjDeptRest<
                 ::poprako_obj_dept::model::task::ObjTaskAction,
             > {

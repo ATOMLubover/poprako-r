@@ -1,46 +1,89 @@
-//! Fixed production composition for periodic background jobs.
+//! Explicitly composed periodic background jobs.
 
 // Hierarchy mark-and-sweep job.
 mod subtree_delete;
 
-use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 
 use poprako_obj_dept::ObjDept;
-use poprako_rdb_core::RdbCore;
 
-use crate::part::nucl::ReptRead;
 use crate::part::obj_dept::{
     ChapterArtwork, ComicCover, PageImage, TeamAvatar,
 };
+use crate::part::repo::subtree_delete::SubtreeRepo;
+use crate::part_impl::nucl::rdb_impl::RdbNucl;
 use crate::shared::RdbContext;
 
 // Fixed worker count for the relational hierarchy sweep.
 const SUBTREE_DELETE_SWEEP_WORKERS: usize = 2;
 
-/// Owns the lifecycle of the fixed production background-job composition.
-pub struct Sched {
+/// Owns cancellation and completion of one background supervisor.
+pub struct SchedDesc {
     //
-    /// Shared cancellation signal for every explicitly composed job.
+    //
+    /// Cancellation signal for the supervisor.
     token: CancellationToken,
-
-    /// Completion receivers used during graceful shutdown.
-    done_recvs: Vec<watch::Receiver<bool>>,
+    /// Task whose completion includes its worker shutdown.
+    task: tokio::task::JoinHandle<()>,
 }
 
-impl Sched {
-    /// Starts the fixed pair of hierarchy sweep workers.
+impl SchedDesc {
+    /// Requests cancellation without waiting for completion.
+    pub fn cancel(&self) {
+        self.token.cancel();
+    }
+
+    /// Waits for completion and reports a supervisor panic or cancellation.
+    ///
+    /// # Errors
+    /// Returns the supervisor task's join error.
+    pub async fn join(mut self) -> Result<(), tokio::task::JoinError> {
+        (&mut self.task).await
+    }
+}
+
+impl Drop for SchedDesc {
+    // Request shutdown when the owner is dropped without joining.
+    fn drop(&mut self) {
+        self.token.cancel();
+    }
+}
+
+/// Periodic jobs with explicitly injected business ports.
+pub struct Sched<N, R, O> {
+    //
+    //
+    /// Transaction coordinator.
+    nucl: N,
+    /// Shared business repository.
+    repo: R,
+    /// Object lifecycle port.
+    obj_dept: O,
+}
+
+impl<N, R, O> Sched<N, R, O> {
+    /// Constructs the scheduler without starting workers.
+    pub const fn new(nucl: N, repo: R, obj_dept: O) -> Self {
+        //
+        Self {
+            //
+            nucl,
+            repo,
+            obj_dept,
+        }
+    }
+}
+
+impl<R, O> Sched<RdbNucl, R, O> {
+    /// Starts the fixed worker group and returns its runtime owner.
     #[must_use]
-    #[expect(
-        clippy::needless_pass_by_value,
-        reason = "workers must own cloned production ports for 'static tasks"
-    )]
-    pub fn new<O>(core: RdbCore, obj_dept: O) -> Self
+    pub fn run_detach(self) -> SchedDesc
     where
-        O: ObjDept<ChapterArtwork, RdbContext<ReptRead>>
-            + ObjDept<PageImage, RdbContext<ReptRead>>
-            + ObjDept<ComicCover, RdbContext<ReptRead>>
-            + ObjDept<TeamAvatar, RdbContext<ReptRead>>
+        R: SubtreeRepo<RdbContext> + Clone + Send + Sync + 'static,
+        O: ObjDept<ChapterArtwork, RdbContext>
+            + ObjDept<PageImage, RdbContext>
+            + ObjDept<ComicCover, RdbContext>
+            + ObjDept<TeamAvatar, RdbContext>
             + Clone
             + Send
             + Sync
@@ -48,44 +91,30 @@ impl Sched {
     {
         let token = CancellationToken::new();
 
-        let done_recvs = (0..SUBTREE_DELETE_SWEEP_WORKERS)
-            .map(|_| {
-                //
-                subtree_delete::spawn(
-                    core.clone(),
-                    obj_dept.clone(),
-                    token.clone(),
-                )
-            })
-            .collect();
+        let worker_token = token.clone();
 
-        Self { token, done_recvs }
-    }
-
-    /// Stops acquiring cleanup work and waits for in-flight transactions.
-    pub async fn close(&self) {
-        //
-        self.token.cancel();
-
-        for done_recv in &self.done_recvs {
+        let task = tokio::spawn(async move {
             //
-            let mut done_recv = done_recv.clone();
+            let workers = (0..SUBTREE_DELETE_SWEEP_WORKERS)
+                .map(|_| {
+                    //
+                    subtree_delete::spawn(
+                        self.nucl.clone(),
+                        self.repo.clone(),
+                        self.obj_dept.clone(),
+                        worker_token.clone(),
+                    )
+                })
+                .collect::<Vec<_>>();
 
-            if let Err(error) = done_recv.wait_for(|done| *done).await {
+            for worker in workers {
                 //
-                tracing::error!(
-                    err = %error,
-                    operation = "close_subtree_sweep_worker",
-                    "scheduler worker ended without completion",
-                );
+                if let Err(error) = worker.await {
+                    tracing::error!(err = ?error, operation = "join_subtree_worker", "scheduler worker failed");
+                }
             }
-        }
-    }
-}
+        });
 
-impl Drop for Sched {
-    // Cancel workers when the scheduler is dropped.
-    fn drop(&mut self) {
-        self.token.cancel();
+        SchedDesc { token, task }
     }
 }

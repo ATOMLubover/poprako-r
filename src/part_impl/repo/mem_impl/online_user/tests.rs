@@ -130,3 +130,27 @@ fn online_users_remain_isolated_by_team() {
         ["user-b"],
     );
 }
+
+// cloned_repo_shares_online_users(HybRepo::clone)(positive): independently injected handles share process-local leases.
+#[tokio::test]
+async fn cloned_repo_shares_online_users() {
+    let core = poprako_rdb_core::RdbCore::from_database_url(
+        "postgres://unused:unused@127.0.0.1:1/unused",
+    )
+    .unwrap();
+
+    let repo = HybRepo::new(core);
+
+    let worker_repo = repo.clone();
+
+    let mark = MarkUserOnline {
+        team_id: "team",
+        user_id: "user",
+    };
+
+    repo.run(&mark).await.unwrap();
+
+    let list = ListOnlineUserIds { team_id: "team" };
+
+    assert_eq!(worker_repo.run(&list).await.unwrap(), ["user"]);
+}

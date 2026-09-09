@@ -36,8 +36,8 @@ pub fn expand(dept: &Ident, entry: &ObjEntry) -> TokenStream {
             ::poprako_obj_dept::oper::MarkObjUploaded<'a, #obj>,
         > for #dept<P, M>
         where
-            P: ::poprako_obj_dept::pool::ObjPool + ::core::marker::Sync,
-            M: ::poprako_obj_dept::prom::ObjProm + ::core::marker::Sync,
+            P: ::poprako_obj_dept::pool::ObjDeptPool + ::core::marker::Sync,
+            M: ::poprako_obj_dept::prom::ObjDeptProm + ::core::marker::Sync,
         {
             type Error = ::poprako_obj_dept::rest::ObjDeptError;
 
@@ -78,8 +78,8 @@ pub fn expand(dept: &Ident, entry: &ObjEntry) -> TokenStream {
         > for #dept<P, M>
         where
             L: ::poprako_orchestra::Level + Send,
-            P: ::poprako_obj_dept::pool::ObjPool + ::core::marker::Sync,
-            M: ::poprako_obj_dept::prom::ObjProm + ::core::marker::Sync,
+            P: ::poprako_obj_dept::pool::ObjDeptPool + ::core::marker::Sync,
+            M: ::poprako_obj_dept::prom::ObjDeptProm + ::core::marker::Sync,
         {
             type Level = L;
             type Error = ::poprako_obj_dept::rest::ObjDeptError;
@@ -118,10 +118,10 @@ pub fn expand(dept: &Ident, entry: &ObjEntry) -> TokenStream {
         > for #dept<P, M>
         where
             L: ::poprako_orchestra::Level + Send,
-            P: ::poprako_obj_dept::pool::ObjPool + ::core::marker::Sync,
-            M: ::poprako_obj_dept::prom::ObjProm
+            P: ::poprako_obj_dept::pool::ObjDeptPool + ::core::marker::Sync,
+            M: ::poprako_obj_dept::prom::ObjDeptProm
                 + ::core::marker::Sync
-                + ::poprako_obj_dept::prom::ObjPromDefer<
+                + ::poprako_obj_dept::prom::ObjDeptPromDefer<
                     ::poprako_rdb_core::RdbContext<L>,
                 >,
         {
@@ -139,8 +139,8 @@ pub fn expand(dept: &Ident, entry: &ObjEntry) -> TokenStream {
                 >,
             > {
                 use ::futures_util::future::try_join_all;
-                use ::poprako_obj_dept::pool::ObjPool as _;
-                use ::poprako_obj_dept::prom::ObjPromDefer as _;
+                use ::poprako_obj_dept::pool::ObjDeptPool as _;
+                use ::poprako_obj_dept::prom::ObjDeptPromDefer as _;
 
                 const POOL_CONCURRENCY: usize = 20;
 
@@ -328,7 +328,7 @@ pub fn expand(dept: &Ident, entry: &ObjEntry) -> TokenStream {
                                 }
                             })?;
 
-                        Ok(::poprako_obj_dept::prom::ObjPromCheck::new(
+                        Ok(::poprako_obj_dept::prom::ObjDeptPromCheck::new(
                             key.clone(),
                             pool_slot.expires_at,
                         ))
@@ -373,10 +373,10 @@ pub fn expand(dept: &Ident, entry: &ObjEntry) -> TokenStream {
         > for #dept<P, M>
         where
             L: ::poprako_orchestra::Level + Send,
-            P: ::poprako_obj_dept::pool::ObjPool + ::core::marker::Sync,
-            M: ::poprako_obj_dept::prom::ObjProm
+            P: ::poprako_obj_dept::pool::ObjDeptPool + ::core::marker::Sync,
+            M: ::poprako_obj_dept::prom::ObjDeptProm
                 + ::core::marker::Sync
-                + ::poprako_obj_dept::prom::ObjPromDefer<
+                + ::poprako_obj_dept::prom::ObjDeptPromDefer<
                     ::poprako_rdb_core::RdbContext<L>,
                 >,
         {
@@ -428,10 +428,10 @@ fn cleanup_step(
         > for #dept<P, M>
         where
             L: ::poprako_orchestra::Level + Send,
-            P: ::poprako_obj_dept::pool::ObjPool + ::core::marker::Sync,
-            M: ::poprako_obj_dept::prom::ObjProm
+            P: ::poprako_obj_dept::pool::ObjDeptPool + ::core::marker::Sync,
+            M: ::poprako_obj_dept::prom::ObjDeptProm
                 + ::core::marker::Sync
-                + ::poprako_obj_dept::prom::ObjPromDefer<
+                + ::poprako_obj_dept::prom::ObjDeptPromDefer<
                     ::poprako_rdb_core::RdbContext<L>,
                 >,
         {
@@ -443,7 +443,7 @@ fn cleanup_step(
                 context: &mut ::poprako_rdb_core::RdbContext<L>,
                 oper: &::poprako_obj_dept::oper::#operation<'a, #obj>,
             ) -> ::poprako_obj_dept::rest::ObjDeptRest<()> {
-                use ::poprako_obj_dept::prom::ObjPromDefer as _;
+                use ::poprako_obj_dept::prom::ObjDeptPromDefer as _;
 
                 let mut ids = oper
                     .ids

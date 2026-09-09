@@ -31,7 +31,6 @@ use crate::shared::RdbContext;
 use crate::shared::result::diesel;
 
 /// Poll the oldest visible pending record from each topic without processing work.
-///
 /// A delayed retry is excluded before the per-topic selection, allowing later
 /// visible work from the same topic to advance. A processing record blocks only
 /// its own topic so separate application instances cannot consume that topic
@@ -41,7 +40,6 @@ use crate::shared::result::diesel;
 pub struct PollPending;
 
 /// Try to claim a record (status Pending → Processing).
-///
 /// Returns `true` if the claim succeeded (i.e. the row was still
 /// Pending), `false` if another worker claimed it first.
 #[derive(Oper)]
@@ -432,10 +430,12 @@ async fn purge_completed(
 /// operations for records in `t_local_message`.
 ///
 /// [`RdbPromActor`]: super::actor::base::RdbPromActor
+#[derive(Default)]
 pub struct RdbPromRepo;
 
 impl RdbPromRepo {
     /// Builds the local-message queue repository.
+    #[must_use]
     pub const fn new() -> Self {
         Self
     }

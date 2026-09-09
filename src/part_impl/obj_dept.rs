@@ -6,18 +6,17 @@ mod artwork;
 #[cfg(test)]
 mod mock_impl;
 
-// R2 object-storage implementation.
-mod r2_impl;
+/// R2 object-storage implementation.
+pub mod r2_impl;
 
 #[cfg(all(test, feature = "rdb"))]
 pub mod tests;
 
-use poprako_obj_dept::actor::{ObjActor, ObjActorDesc};
 use poprako_obj_dept::key::KeyMap;
-use poprako_obj_dept::pool::{ObjPool, ObjPoolView};
-use poprako_obj_dept::prom::ObjProm;
+use poprako_obj_dept::pool::{ObjDeptPool, ObjDeptPoolView};
+use poprako_obj_dept::prom::ObjDeptProm;
 use poprako_obj_dept::rest::{ObjDeptError, ObjDeptRest};
-use poprako_obj_dept::{impl_obj_dept, objs_def, rdb_obj_prom};
+use poprako_obj_dept::{impl_obj_dept, objs_def, rdb_obj_dept_prom};
 use poprako_rdb_core::RdbCore;
 
 #[cfg(test)]
@@ -27,7 +26,7 @@ use crate::complex::image::ImageComplex;
 use crate::part::obj_dept::{
     ChapterArtwork, ComicCover, PageImage, TeamAvatar, UserAvatar,
 };
-use crate::part_impl::obj_dept::r2_impl::R2ObjPool;
+use crate::part_impl::obj_dept::r2_impl::R2ObjDeptPool;
 use crate::part_impl::repo::rdb_impl::schema::{
     t_chapter_artwork, t_comic_cover, t_obj_prom_task, t_page_image,
     t_team_avatar, t_user_avatar,
@@ -118,9 +117,9 @@ impl_flat_key_map!(
     ImageComplex::parse_comic_cover_key
 );
 
-rdb_obj_prom! {
+rdb_obj_dept_prom! {
     //
-    RdbObjProm {
+    RdbObjDeptProm {
         table: t_obj_prom_task,
     }
 }
@@ -149,7 +148,7 @@ objs_def! {
 }
 
 /// Total object department composed from storage and durable-task adapters.
-pub struct NormObjDept<P = R2ObjPool, M = RdbObjProm> {
+pub struct NormObjDept<P = R2ObjDeptPool, M = RdbObjDeptProm> {
     //
     /// Shared relational database core.
     core: RdbCore,
@@ -157,86 +156,33 @@ pub struct NormObjDept<P = R2ObjPool, M = RdbObjProm> {
     pool: P,
     /// Durable object-task adapter.
     prom: M,
-    /// Control descriptor for the single actor.
-    actor_desc: ObjActorDesc,
 }
 
-/// Read-only projection of object metadata and physical storage.
-#[derive(Clone)]
-pub struct NormObjView<P> {
-    //
-    /// Shared relational database core.
-    core: RdbCore,
-    /// Physical object-storage adapter.
-    pool: P,
-}
-
-impl<P> NormObjView<P>
-where
-    P: ObjPoolView,
-{
-    // Returns the shared relational database core.
-    const fn core(&self) -> &RdbCore {
-        &self.core
-    }
-
-    // Returns the physical object-storage adapter.
-    const fn pool(&self) -> &P {
-        &self.pool
+impl<P, M> NormObjDept<P, M> {
+    /// Constructs the department from already composed storage adapters.
+    pub const fn new(core: RdbCore, pool: P, prom: M) -> Self {
+        Self { core, pool, prom }
     }
 }
 
 impl<P, M> NormObjDept<P, M>
 where
-    P: ObjPool + Clone + Send + Sync + 'static,
-    M: ObjProm + Clone + Send + Sync + 'static,
+    P: Clone,
 {
-    /// Cancels the actor and waits for it to finish.
-    pub async fn close(&self) {
+    /// Returns a read-only projection sharing the injected storage dependencies.
+    pub fn view(&self) -> NormObjDeptView<P> {
         //
-        self.actor_desc.cancel();
-
-        self.actor_desc.join().await;
-    }
-
-    /// Returns a read-only projection without the durable object-task adapter.
-    pub fn view(&self) -> NormObjView<P> {
-        //
-        NormObjView {
+        NormObjDeptView {
             core: self.core.clone(),
             pool: self.pool.clone(),
         }
     }
-
-    // Creates the total department and starts its single actor.
-    fn new(core: RdbCore, pool: P, prom: M) -> Self {
-        //
-        let actor_core = core.clone();
-
-        let actor_pool = pool.clone();
-
-        let actor_desc = ObjActor::new(prom.clone(), move |task| {
-            //
-            let core = actor_core.clone();
-
-            let pool = actor_pool.clone();
-
-            async move { Self::dispatch(core, pool, task).await }
-        });
-
-        Self {
-            core,
-            pool,
-            prom,
-            actor_desc,
-        }
-    }
 }
 
 impl<P, M> NormObjDept<P, M>
 where
-    P: ObjPool,
-    M: ObjProm,
+    P: ObjDeptPool,
+    M: ObjDeptProm,
 {
     // Returns the shared relational database core.
     const fn core(&self) -> &RdbCore {
@@ -266,14 +212,38 @@ where
             core: self.core.clone(),
             pool: self.pool.clone(),
             prom: self.prom.clone(),
-            actor_desc: self.actor_desc.clone(),
         }
+    }
+}
+
+/// Read-only projection of object metadata and physical storage.
+#[derive(Clone)]
+pub struct NormObjDeptView<P> {
+    //
+    /// Shared relational database core.
+    core: RdbCore,
+    /// Physical object-storage adapter.
+    pool: P,
+}
+
+impl<P> NormObjDeptView<P>
+where
+    P: ObjDeptPoolView,
+{
+    // Returns the shared relational database core.
+    const fn core(&self) -> &RdbCore {
+        &self.core
+    }
+
+    // Returns the physical object-storage adapter.
+    const fn pool(&self) -> &P {
+        &self.pool
     }
 }
 
 impl_obj_dept! {
     dept: NormObjDept,
-    view: NormObjView,
+    view: NormObjDeptView,
 }
 
 // Expands test adapters from the object manifest.
@@ -286,22 +256,6 @@ macro_rules! implement_mock_obj_dept_from_manifest {
 
 #[cfg(test)]
 for_each_obj!(implement_mock_obj_dept_from_manifest);
-
-/// Builds the production `ObjDept` without exposing its actor-side adapter.
-///
-/// # Errors
-///
-/// Returns an error when the R2 object-storage configuration is unavailable.
-pub fn new_obj_dept(
-    core: RdbCore,
-) -> anyhow::Result<NormObjDept<R2ObjPool, RdbObjProm>> {
-    //
-    let pool = R2ObjPool::from_env()?;
-
-    let prom = RdbObjProm::new(core.clone());
-
-    Ok(NormObjDept::new(core, pool, prom))
-}
 
 // Builds a stable invalid-key error at the concrete mapping boundary.
 fn invalid_key(kind: &str) -> ObjDeptError {

@@ -94,9 +94,9 @@ pub fn classify(ver: u32, row: Option<&ObjRdbRow>) -> ObjDeptRest<ObjKeyState> {
 #[doc(hidden)]
 #[macro_export]
 // Expands the typed RDB object handler selected by manifest dispatch.
-macro_rules! handle_obj_task {
+macro_rules! handle_obj_dept_task {
     ($core:expr, $pool:expr, $task:expr, $obj:ty, $obj_mod:ident $(,)?) => {{
-        use ::poprako_obj_dept::pool::ObjPool as _;
+        use ::poprako_obj_dept::pool::ObjDeptPool as _;
 
         let core = $core;
         let pool = $pool;

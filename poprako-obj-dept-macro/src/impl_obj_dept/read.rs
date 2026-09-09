@@ -20,8 +20,8 @@ pub fn expand(dept: &Ident, view: &Ident, entry: &ObjEntry) -> TokenStream {
             ::poprako_obj_dept::oper::ListObjMetas<'a, #obj>,
         > for #dept<P, M>
         where
-            P: ::poprako_obj_dept::pool::ObjPool + ::core::marker::Sync,
-            M: ::poprako_obj_dept::prom::ObjProm + ::core::marker::Sync,
+            P: ::poprako_obj_dept::pool::ObjDeptPool + ::core::marker::Sync,
+            M: ::poprako_obj_dept::prom::ObjDeptProm + ::core::marker::Sync,
         {
             type Error = ::poprako_obj_dept::rest::ObjDeptError;
 
@@ -50,8 +50,8 @@ pub fn expand(dept: &Ident, view: &Ident, entry: &ObjEntry) -> TokenStream {
         > for #dept<P, M>
         where
             L: ::poprako_orchestra::Level + Send,
-            P: ::poprako_obj_dept::pool::ObjPool + ::core::marker::Sync,
-            M: ::poprako_obj_dept::prom::ObjProm + ::core::marker::Sync,
+            P: ::poprako_obj_dept::pool::ObjDeptPool + ::core::marker::Sync,
+            M: ::poprako_obj_dept::prom::ObjDeptProm + ::core::marker::Sync,
         {
             type Level = L;
             type Error = ::poprako_obj_dept::rest::ObjDeptError;
@@ -77,8 +77,8 @@ pub fn expand(dept: &Ident, view: &Ident, entry: &ObjEntry) -> TokenStream {
             ::poprako_obj_dept::oper::GenObjUrls<'a, #obj>,
         > for #dept<P, M>
         where
-            P: ::poprako_obj_dept::pool::ObjPool + ::core::marker::Sync,
-            M: ::poprako_obj_dept::prom::ObjProm + ::core::marker::Sync,
+            P: ::poprako_obj_dept::pool::ObjDeptPool + ::core::marker::Sync,
+            M: ::poprako_obj_dept::prom::ObjDeptProm + ::core::marker::Sync,
         {
             type Error = ::poprako_obj_dept::rest::ObjDeptError;
 
@@ -105,7 +105,7 @@ pub fn expand(dept: &Ident, view: &Ident, entry: &ObjEntry) -> TokenStream {
             ::poprako_obj_dept::oper::ListObjMetas<'a, #obj>,
         > for #view<P>
         where
-            P: ::poprako_obj_dept::pool::ObjPoolView + ::core::marker::Sync,
+            P: ::poprako_obj_dept::pool::ObjDeptPoolView + ::core::marker::Sync,
         {
             type Error = ::poprako_obj_dept::rest::ObjDeptError;
 
@@ -134,7 +134,7 @@ pub fn expand(dept: &Ident, view: &Ident, entry: &ObjEntry) -> TokenStream {
         > for #view<P>
         where
             L: ::poprako_orchestra::Level + Send,
-            P: ::poprako_obj_dept::pool::ObjPoolView + ::core::marker::Sync,
+            P: ::poprako_obj_dept::pool::ObjDeptPoolView + ::core::marker::Sync,
         {
             type Level = L;
             type Error = ::poprako_obj_dept::rest::ObjDeptError;
@@ -160,7 +160,7 @@ pub fn expand(dept: &Ident, view: &Ident, entry: &ObjEntry) -> TokenStream {
             ::poprako_obj_dept::oper::GenObjUrls<'a, #obj>,
         > for #view<P>
         where
-            P: ::poprako_obj_dept::pool::ObjPoolView + ::core::marker::Sync,
+            P: ::poprako_obj_dept::pool::ObjDeptPoolView + ::core::marker::Sync,
         {
             type Error = ::poprako_obj_dept::rest::ObjDeptError;
 

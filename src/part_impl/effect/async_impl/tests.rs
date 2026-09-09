@@ -1,11 +1,11 @@
 // develop_dispatches_user_signup(AsyncEffectDevelop::develop)(positive): signup events should create one system mail for the invitor.
 // develop_dispatches_chapter_workflow_completed(AsyncEffectDevelop::develop)(positive): workflow completion should notify next-phase and reviewer assignees.
 // develop_dispatches_chapter_published(AsyncEffectDevelop::develop)(positive): chapter publication should notify reviewer assignees.
-// close_is_idempotent(AsyncEffectDevelop::close)(negative): repeated close calls should return without blocking.
-// close_is_concurrent(AsyncEffectDevelop::close)(negative): concurrent close calls should observe the same completion state.
 
+use super::actor::EffectActor;
 use super::*;
 
+use std::sync::Arc;
 use time::OffsetDateTime;
 
 use crate::model::read::proj::assignment::AssignmentInfo;
@@ -157,7 +157,10 @@ async fn develop_dispatches_user_signup() {
 
     mock.seed_team(team_info());
 
-    let develop = AsyncEffectDevelop::new(Arc::clone(&mock), BUF_SIZE);
+    let (develop, effect_recv) = AsyncEffectDevelop::new(BUF_SIZE);
+
+    let actor =
+        EffectActor::new(mock.as_ref().clone(), effect_recv).run_detach();
 
     Event::UserSignedUp {
         payload: UserSignedUpEvent {
@@ -169,7 +172,9 @@ async fn develop_dispatches_user_signup() {
     .develop_on(&develop)
     .await;
 
-    develop.close().await;
+    actor.cancel();
+
+    actor.join().await.unwrap();
 
     let snapshot = mock.snapshot();
 
@@ -198,7 +203,10 @@ async fn develop_dispatches_chapter_workflow_completed() {
         RoleMask::from(RoleField::REVIEWER),
     ));
 
-    let develop = AsyncEffectDevelop::new(Arc::clone(&mock), BUF_SIZE);
+    let (develop, effect_recv) = AsyncEffectDevelop::new(BUF_SIZE);
+
+    let actor =
+        EffectActor::new(mock.as_ref().clone(), effect_recv).run_detach();
 
     Event::ChapterWorkflowCompleted {
         payload: ChapterWorkflowCompletedEvent {
@@ -209,7 +217,9 @@ async fn develop_dispatches_chapter_workflow_completed() {
     .develop_on(&develop)
     .await;
 
-    develop.close().await;
+    actor.cancel();
+
+    actor.join().await.unwrap();
 
     let snapshot = mock.snapshot();
 
@@ -238,7 +248,10 @@ async fn develop_dispatches_chapter_published() {
         RoleMask::from(RoleField::REVIEWER),
     ));
 
-    let develop = AsyncEffectDevelop::new(Arc::clone(&mock), BUF_SIZE);
+    let (develop, effect_recv) = AsyncEffectDevelop::new(BUF_SIZE);
+
+    let actor =
+        EffectActor::new(mock.as_ref().clone(), effect_recv).run_detach();
 
     Event::ChapterPublished {
         payload: ChapterPublishedEvent {
@@ -248,7 +261,9 @@ async fn develop_dispatches_chapter_published() {
     .develop_on(&develop)
     .await;
 
-    develop.close().await;
+    actor.cancel();
+
+    actor.join().await.unwrap();
 
     let snapshot = mock.snapshot();
 
@@ -257,28 +272,132 @@ async fn develop_dispatches_chapter_published() {
     assert_eq!(snapshot.system_mails[0].receiver_id, "reviewer-user");
 }
 
+// cancel_is_idempotent(EffectActorDesc::cancel)(positive): repeated cancellation safely joins the consumer.
 #[tokio::test]
-async fn close_is_idempotent() {
-    //
-    // Internal implementation detail.
-    let mock = Arc::new(Mock::new());
+async fn cancel_is_idempotent() {
+    let (_develop, effect_recv) = AsyncEffectDevelop::new(BUF_SIZE);
 
-    let develop = AsyncEffectDevelop::new(mock, BUF_SIZE);
+    let actor = EffectActor::new(Mock::new(), effect_recv).run_detach();
 
-    develop.close().await;
+    actor.cancel();
 
-    develop.close().await;
+    actor.cancel();
+
+    actor.join().await.unwrap();
 }
 
+// clone_drop_preserves_consumer(AsyncEffectDevelop::clone)(positive): dropping a producer clone must not cancel event processing.
 #[tokio::test]
-async fn close_is_concurrent() {
-    //
-    // Internal implementation detail.
-    let mock = Arc::new(Mock::new());
+async fn clone_drop_preserves_consumer() {
+    let mock = Mock::new();
 
-    let develop = AsyncEffectDevelop::new(mock, BUF_SIZE);
+    mock.seed_team(team_info());
 
-    let (first, second) = tokio::join!(develop.close(), develop.close());
+    let (develop, effect_recv) = AsyncEffectDevelop::new(BUF_SIZE);
 
-    assert_eq!((first, second), ((), ()));
+    let actor = EffectActor::new(mock.clone(), effect_recv).run_detach();
+
+    drop(develop.clone());
+
+    Event::UserSignedUp {
+        payload: UserSignedUpEvent {
+            team_id: "team-1".into(),
+            invitor_id: "owner".into(),
+            invitee_qid: "10001".into(),
+        },
+    }
+    .develop_on(&develop)
+    .await;
+
+    actor.cancel();
+
+    actor.join().await.unwrap();
+
+    assert_eq!(mock.snapshot().system_mails.len(), 1);
+}
+
+// construction_defers_processing(EffectActor::new)(positive): queued events stay pending until explicit startup.
+#[tokio::test]
+async fn construction_defers_processing() {
+    let mock = Mock::new();
+
+    mock.seed_team(team_info());
+
+    let (develop, effect_recv) = AsyncEffectDevelop::new(BUF_SIZE);
+
+    let actor = EffectActor::new(mock.clone(), effect_recv);
+
+    Event::UserSignedUp {
+        payload: UserSignedUpEvent {
+            team_id: "team-1".into(),
+            invitor_id: "owner".into(),
+            invitee_qid: "10001".into(),
+        },
+    }
+    .develop_on(&develop)
+    .await;
+
+    tokio::task::yield_now().await;
+
+    assert!(mock.snapshot().system_mails.is_empty());
+
+    let actor = actor.run_detach();
+
+    actor.cancel();
+
+    actor.join().await.unwrap();
+
+    assert_eq!(mock.snapshot().system_mails.len(), 1);
+}
+
+// descriptor_drop_stops_consumer(EffectActorDesc::drop)(positive): dropping the runtime owner closes the receive side.
+#[tokio::test]
+async fn descriptor_drop_stops_consumer() {
+    let (develop, effect_recv) = AsyncEffectDevelop::new(BUF_SIZE);
+
+    let actor = EffectActor::new(Mock::new(), effect_recv).run_detach();
+
+    drop(actor);
+
+    tokio::time::timeout(
+        std::time::Duration::from_secs(2),
+        develop.send.closed(),
+    )
+    .await
+    .unwrap();
+}
+
+// join_reports_supervisor_failure(EffectActorDesc::join)(negative): abrupt task termination is reported through the runtime owner.
+#[tokio::test]
+async fn join_reports_supervisor_failure() {
+    let mock = Mock::new();
+
+    mock.seed_team(team_info());
+
+    let (develop, effect_recv) = AsyncEffectDevelop::new(BUF_SIZE);
+
+    let actor = EffectActor::new(mock.clone(), effect_recv).run_detach();
+
+    let _ = std::panic::catch_unwind(|| {
+        let _guard = mock.state.lock().unwrap();
+
+        panic!("poison injected repository");
+    });
+
+    Event::UserSignedUp {
+        payload: UserSignedUpEvent {
+            team_id: "team-1".into(),
+            invitor_id: "owner".into(),
+            invitee_qid: "10001".into(),
+        },
+    }
+    .develop_on(&develop)
+    .await;
+
+    assert!(
+        tokio::time::timeout(std::time::Duration::from_secs(2), actor.join())
+            .await
+            .unwrap()
+            .is_err()
+    );
 }

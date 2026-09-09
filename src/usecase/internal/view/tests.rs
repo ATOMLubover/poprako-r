@@ -86,7 +86,7 @@ impl TestObjDept {
     }
 }
 
-macro_rules! impl_obj_view {
+macro_rules! impl_obj_dept_view {
     ($marker:ty, $list_operation:literal, $url_operation:literal) => {
         impl<'a> Run<ListObjMetas<'a, $marker>> for TestObjDept {
             type Error = ObjDeptError;
@@ -190,10 +190,10 @@ macro_rules! impl_obj_view {
     };
 }
 
-impl_obj_view!(ComicCover, "cover-list", "cover-urls");
-impl_obj_view!(PageImage, "page-list", "page-urls");
-impl_obj_view!(TeamAvatar, "team-list", "team-urls");
-impl_obj_view!(UserAvatar, "user-list", "user-urls");
+impl_obj_dept_view!(ComicCover, "cover-list", "cover-urls");
+impl_obj_dept_view!(PageImage, "page-list", "page-urls");
+impl_obj_dept_view!(TeamAvatar, "team-list", "team-urls");
+impl_obj_dept_view!(UserAvatar, "user-list", "user-urls");
 
 #[derive(Default)]
 struct TestRepo {

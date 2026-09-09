@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use crate::config::AppConfig;
 
-/// Central application harness that wires together all port implementations.
+/// Shared storage for application ports composed by the entry point.
 pub struct Harn<N, R, O, P, A, D> {
     /// Shared harness storage.
     inner: Arc<HarnInner<N, R, O, P, A, D>>,
@@ -39,7 +39,7 @@ struct HarnInner<N, R, O, P, A, D> {
     prom: P,
     // Authentication adapter.
     auth: A,
-    // Side-effect dispatcher.
+    // Best-effort event producer.
     develop: D,
 }
 
@@ -99,7 +99,7 @@ impl<N, R, O, P, A, D> Harn<N, R, O, P, A, D> {
         &self.inner.auth
     }
 
-    /// Returns the side-effect developer.
+    /// Returns the best-effort event producer.
     #[must_use]
     pub fn develop(&self) -> &D {
         &self.inner.develop

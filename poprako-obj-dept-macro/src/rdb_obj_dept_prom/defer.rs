@@ -234,7 +234,7 @@ pub fn expand_module(table: &Path) -> TokenStream {
 pub fn expand_impl(name: &Ident, module: &Ident) -> TokenStream {
     //
     quote! {
-        impl<L> ::poprako_obj_dept::prom::ObjPromDefer<
+        impl<L> ::poprako_obj_dept::prom::ObjDeptPromDefer<
             ::poprako_rdb_core::RdbContext<L>,
         > for #name
         where
@@ -248,7 +248,7 @@ pub fn expand_impl(name: &Ident, module: &Ident) -> TokenStream {
                 expires_at: ::time::OffsetDateTime,
             ) -> ::poprako_obj_dept::rest::ObjDeptRest<()> {
                 //
-                let check = ::poprako_obj_dept::prom::ObjPromCheck::new(
+                let check = ::poprako_obj_dept::prom::ObjDeptPromCheck::new(
                     key.clone(),
                     expires_at,
                 );
@@ -271,7 +271,7 @@ pub fn expand_impl(name: &Ident, module: &Ident) -> TokenStream {
                 &'a self,
                 context: &'a mut ::poprako_rdb_core::RdbContext<L>,
                 topic: &'a str,
-                checks: &'a [::poprako_obj_dept::prom::ObjPromCheck],
+                checks: &'a [::poprako_obj_dept::prom::ObjDeptPromCheck],
             ) -> ::poprako_obj_dept::rest::ObjDeptRest<()> {
                 let mut tasks = checks
                     .iter()

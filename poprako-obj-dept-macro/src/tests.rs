@@ -70,7 +70,7 @@ fn generated_names_are_readable_and_read_views_cover_every_marker()
     .to_string();
     let implementations = impl_obj_dept::expand_items(quote! {
         dept: NormObjDept,
-        view: NormObjView;
+        view: NormObjDeptView;
         (PageImage, page_image_rdb_impl, "page_image"),
         (FontFile, font_file_rdb_impl, "font_file"),
     })?
@@ -84,7 +84,7 @@ fn generated_names_are_readable_and_read_views_cover_every_marker()
 
     assert!(!manifest.contains("__"));
 
-    assert!(implementations.contains("NormObjView"));
+    assert!(implementations.contains("NormObjDeptView"));
 
     assert!(implementations.contains("PageImage"));
 

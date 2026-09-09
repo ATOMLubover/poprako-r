@@ -14,8 +14,17 @@ use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use tracing::instrument;
 
+use poprako_obj_dept::ObjDeptView;
+
 use crate::part::effect::Develop;
-use crate::part_impl::prom::rdb_impl::actor::base::{ObjView, RdbPromActor};
+use crate::part::obj_dept::PageImage;
+use crate::part::repo::assignment_invitation::AssignmentInvitationRepo;
+use crate::part::repo::chapter::ChapterRepo;
+use crate::part::repo::chapter_workflow_record::ChapterWorkflowRecordRepo;
+use crate::part::repo::member_invitation::MemberInvitationRepo;
+use crate::part::repo::page::PageRepo;
+use crate::part_impl::nucl::rdb_impl::RdbNucl;
+use crate::part_impl::prom::rdb_impl::actor::base::RdbPromActor;
 use crate::part_impl::prom::rdb_impl::entity::LocalMessageRow;
 use crate::part_impl::prom::rdb_impl::repo::{
     ClaimPending, CompleteMessage, FailMessage, PollPending, PurgeCompleted,
@@ -23,6 +32,7 @@ use crate::part_impl::prom::rdb_impl::repo::{
 };
 use crate::part_impl::prom::task_flow::TaskFlow;
 use crate::result::{BaseError, BaseRest};
+use crate::shared::RdbContext;
 
 // Constant definition for `WORKER_COUNT`.
 const WORKER_COUNT: usize = 4;
@@ -54,8 +64,8 @@ const FNV_OFFSET_BASIS: u64 = 14_695_981_039_346_656_037;
 // Constant definition for `FNV_PRIME`.
 const FNV_PRIME: u64 = 1_099_511_628_211;
 
-// Internal type alias for `WorkerSender`.
-type WorkerSender = mpsc::UnboundedSender<LocalMessageRow>;
+// Internal type alias for `WorkerSend`.
+type WorkerSend = mpsc::UnboundedSender<LocalMessageRow>;
 
 /// Enforces the retry limit for a task flow.
 ///
@@ -77,9 +87,17 @@ pub fn enforce_retry_limit(
     }
 }
 
-impl<V, D> RdbPromActor<V, D>
+impl<R, V, D> RdbPromActor<RdbNucl, R, V, D>
 where
-    V: ObjView + Send + Sync + 'static,
+    R: AssignmentInvitationRepo<RdbContext>
+        + ChapterRepo<RdbContext>
+        + ChapterWorkflowRecordRepo<RdbContext>
+        + MemberInvitationRepo<RdbContext>
+        + PageRepo<RdbContext>
+        + Send
+        + Sync
+        + 'static,
+    V: ObjDeptView<PageImage, RdbContext> + Send + Sync + 'static,
     D: Develop + Send + Sync + 'static,
 {
     /// Runs the polling supervisor and drains in-flight worker tasks on shutdown.
@@ -88,13 +106,13 @@ where
         //
         let (actor, completed) = (Arc::new(self), Arc::new(Notify::new()));
 
-        let (worker_senders, worker_handles) = actor.spawn_workers(&completed);
+        let (worker_sends, worker_handles) = actor.spawn_workers(&completed);
 
         actor
-            .run_supervisor(&worker_senders, completed.as_ref())
+            .run_supervisor(&worker_sends, completed.as_ref())
             .await;
 
-        drop(worker_senders);
+        drop(worker_sends);
 
         for worker_handle in worker_handles {
             //
@@ -112,23 +130,22 @@ where
     fn spawn_workers(
         self: &Arc<Self>,
         completed: &Arc<Notify>,
-    ) -> (Vec<WorkerSender>, Vec<JoinHandle<()>>) {
+    ) -> (Vec<WorkerSend>, Vec<JoinHandle<()>>) {
         //
-        let (mut worker_senders, mut worker_handles) = (
+        let (mut worker_sends, mut worker_handles) = (
             Vec::with_capacity(WORKER_COUNT),
             Vec::with_capacity(WORKER_COUNT),
         );
 
         for worker_index in 0..WORKER_COUNT {
             //
-            let (worker_sender, mut worker_receiver) =
-                mpsc::unbounded_channel();
+            let (worker_send, mut worker_recv) = mpsc::unbounded_channel();
 
             let (actor, completed) = (self.clone(), completed.clone());
 
             let worker_handle = tokio::spawn(async move {
                 //
-                while let Some(row) = worker_receiver.recv().await {
+                while let Some(row) = worker_recv.recv().await {
                     //
                     actor.process_row(&row).await;
 
@@ -141,18 +158,18 @@ where
                 );
             });
 
-            worker_senders.push(worker_sender);
+            worker_sends.push(worker_send);
 
             worker_handles.push(worker_handle);
         }
 
-        (worker_senders, worker_handles)
+        (worker_sends, worker_handles)
     }
 
     // Internal implementation of `run_supervisor`.
     async fn run_supervisor(
         &self,
-        worker_senders: &[WorkerSender],
+        worker_sends: &[WorkerSend],
         completed: &Notify,
     ) {
         //
@@ -186,7 +203,7 @@ where
                 //
                 Ok(rows) => {
                     //
-                    match self.dispatch_rows(worker_senders, rows).await {
+                    match self.dispatch_rows(worker_sends, rows).await {
                         //
                         Ok(dispatched) => dispatched,
 
@@ -327,9 +344,9 @@ where
     async fn poll(&self) -> BaseRest<Vec<LocalMessageRow>> {
         //
         let rows = self
-            .nucl()
+            .prom_nucl()
             .coord(async |context| {
-                PollPending.step_on(self.repo(), context).await
+                PollPending.step_on(self.prom_repo(), context).await
             })
             .await?;
 
@@ -339,7 +356,7 @@ where
     // Internal implementation of `dispatch_rows`.
     async fn dispatch_rows(
         &self,
-        worker_senders: &[WorkerSender],
+        worker_sends: &[WorkerSend],
         rows: Vec<LocalMessageRow>,
     ) -> BaseRest<bool> {
         //
@@ -349,12 +366,12 @@ where
             //
             let worker_index = topic_worker_index(&row.f_topic)?;
 
-            let Some(worker_sender) = worker_senders.get(worker_index) else {
+            let Some(worker_send) = worker_sends.get(worker_index) else {
                 //
                 tracing::error!(
                     id = %row.f_id,
                     worker_index,
-                    worker_count = worker_senders.len(),
+                    worker_count = worker_sends.len(),
                     "internal invariant violated: prom worker is missing",
                 );
 
@@ -381,7 +398,7 @@ where
                 continue;
             }
 
-            match worker_sender.send(row) {
+            match worker_send.send(row) {
                 //
                 Ok(()) => dispatched = true,
 
@@ -403,11 +420,11 @@ where
     // Internal implementation of `complete`.
     async fn complete(&self, id: &str, lease: i64) -> BaseRest<()> {
         //
-        self.nucl()
+        self.prom_nucl()
             .coord(async |context| {
                 //
                 CompleteMessage::new(id, lease)
-                    .step_on(self.repo(), context)
+                    .step_on(self.prom_repo(), context)
                     .await
             })
             .await?;
@@ -433,7 +450,7 @@ where
                             .into(),
                 })?;
 
-            self.nucl()
+            self.prom_nucl()
                 .coord(async |context| {
                     //
                     RetryMessage::new(
@@ -443,7 +460,7 @@ where
                         &visible_at,
                         retry_delta,
                     )
-                    .step_on(self.repo(), context)
+                    .step_on(self.prom_repo(), context)
                     .await
                 })
                 .await?;
@@ -467,11 +484,11 @@ where
     // Internal implementation of `fail`.
     async fn fail(&self, id: &str, lease: i64, message: &str) -> BaseRest<()> {
         //
-        self.nucl()
+        self.prom_nucl()
             .coord(async |context| {
                 //
                 FailMessage::new(id, lease, message)
-                    .step_on(self.repo(), context)
+                    .step_on(self.prom_repo(), context)
                     .await
             })
             .await?;
@@ -491,9 +508,12 @@ where
                         .into(),
             })?;
 
-        self.nucl()
+        self.prom_nucl()
             .coord(async |context| {
-                ResetStuck::new(&before).step_on(self.repo(), context).await
+                //
+                ResetStuck::new(&before)
+                    .step_on(self.prom_repo(), context)
+                    .await
             })
             .await?;
 
@@ -521,11 +541,11 @@ where
             })?;
 
         let purged_count = self
-            .nucl()
+            .prom_nucl()
             .coord(async |context| {
                 //
                 PurgeCompleted::new(&completed_before, &dead_before)
-                    .step_on(self.repo(), context)
+                    .step_on(self.prom_repo(), context)
                     .await
             })
             .await?;
@@ -538,11 +558,11 @@ where
     async fn claim(&self, id: &str, lease: i64) -> BaseRest<bool> {
         //
         let claimed = self
-            .nucl()
+            .prom_nucl()
             .coord(async |context| {
                 //
                 ClaimPending::new(id, lease)
-                    .step_on(self.repo(), context)
+                    .step_on(self.prom_repo(), context)
                     .await
             })
             .await?;
